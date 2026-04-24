@@ -32,6 +32,10 @@ function Editor() {
   const [exportOpen, setExportOpen] = useState(false);
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
 
+  // Responsive state
+  const [leftOpen, setLeftOpen] = useState(false);
+  const [rightOpen, setRightOpen] = useState(false);
+
   const canvasRef = useRef<CanvasHandle | null>(null);
 
   // Auto-capture thumbnail 900ms after last edit (debounced)
@@ -133,16 +137,20 @@ function Editor() {
   ]);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       <Toolbar
         onOpenSize={() => setSizeOpen(true)}
         onOpenCreate={() => setCreateOpen(true)}
         onOpenPreview={openPreview}
+        leftOpen={leftOpen}
+        setLeftOpen={setLeftOpen}
+        rightOpen={rightOpen}
+        setRightOpen={setRightOpen}
       />
-      <div className="flex-1 flex min-h-0">
-        <ElementsPanel />
+      <div className="flex-1 flex min-h-0 relative">
+        <ElementsPanel open={leftOpen} onClose={() => setLeftOpen(false)} />
         <CanvasWithGrid canvasRef={canvasRef} />
-        <PropertiesPanel />
+        <PropertiesPanel open={rightOpen} onClose={() => setRightOpen(false)} />
       </div>
 
       <SizeSelector open={sizeOpen} onClose={() => setSizeOpen(false)} />

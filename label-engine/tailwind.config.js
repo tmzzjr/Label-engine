@@ -14,11 +14,11 @@ export default {
         fg: "#e4e6eb",
         muted: "#8a93a6",
         subtle: "#5a6272",
-        // Accents
+        // Accents — blue
         accent: {
-          DEFAULT: "#a855f7", // violet-500
-          hover: "#9333ea", // violet-600
-          soft: "#2a1752",
+          DEFAULT: "#3b82f6", // blue-500
+          hover: "#2563eb", // blue-600
+          soft: "#0f2a52", // dark blue tint for dark-mode backgrounds
           fg: "#ffffff",
         },
         guide: "#ec4899", // pink-500 for alignment guides

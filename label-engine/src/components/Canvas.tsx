@@ -530,9 +530,9 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
                 ref={trRef}
                 rotateEnabled
                 anchorSize={8}
-                anchorStroke="#a855f7"
+                anchorStroke="#3b82f6"
                 anchorFill="#ffffff"
-                borderStroke="#a855f7"
+                borderStroke="#3b82f6"
                 borderDash={[4, 4]}
                 keepRatio={false}
                 boundBoxFunc={(oldBox, newBox) => {
@@ -591,7 +591,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
             transform: `rotate(${editingRect.rotation}deg)`,
             transformOrigin: "top left",
             background: "rgba(255,255,255,0.98)",
-            border: "2px solid #a855f7",
+            border: "2px solid #3b82f6",
             outline: "none",
             resize: "none",
             padding: "2px 4px",

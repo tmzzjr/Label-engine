@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Type,
   Image as ImgIcon,
@@ -7,7 +7,10 @@ import {
   Circle,
   Minus,
   Upload,
+  X,
+  Loader2,
 } from "lucide-react";
+import { pdfFirstPageToDataURL, isPDF } from "../pdfToImage";
 import { useStore } from "../store";
 import type {
   CircleElement,
@@ -20,10 +23,17 @@ import type {
 import { uid, readFileAsDataURL } from "../utils";
 import { inToPx } from "../types";
 
-export default function ElementsPanel() {
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function ElementsPanel({ open, onClose }: Props) {
   const { doc, addElement, setBackgroundImage } = useStore();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const bgFileRef = useRef<HTMLInputElement | null>(null);
+  const [bgLoading, setBgLoading] = useState(false);
+  const [bgError, setBgError] = useState<string | null>(null);
 
   if (!doc) return null;
   const w = inToPx(doc.size.widthIn);
@@ -58,6 +68,7 @@ export default function ElementsPanel() {
       lineHeight: 1.2,
     };
     addElement(el);
+    if (window.innerWidth < 1024) onClose();
   };
 
   const addQR = () => {
@@ -78,6 +89,7 @@ export default function ElementsPanel() {
       bg: "#ffffff",
     };
     addElement(el);
+    if (window.innerWidth < 1024) onClose();
   };
 
   const addRect = () => {
@@ -99,6 +111,7 @@ export default function ElementsPanel() {
       cornerRadius: 4,
     };
     addElement(el);
+    if (window.innerWidth < 1024) onClose();
   };
 
   const addCircle = () => {
@@ -118,6 +131,7 @@ export default function ElementsPanel() {
       strokeWidth: 1,
     };
     addElement(el);
+    if (window.innerWidth < 1024) onClose();
   };
 
   const addLine = () => {
@@ -136,6 +150,7 @@ export default function ElementsPanel() {
       strokeWidth: 2,
     };
     addElement(el);
+    if (window.innerWidth < 1024) onClose();
   };
 
   const onUploadImage = async (file: File) => {
@@ -171,90 +186,141 @@ export default function ElementsPanel() {
         naturalHeight: img.naturalHeight,
       };
       addElement(el);
+      if (window.innerWidth < 1024) onClose();
     };
     img.src = dataUrl;
   };
 
   const onUploadBackground = async (file: File) => {
-    const dataUrl = await readFileAsDataURL(file);
-    setBackgroundImage(dataUrl);
+    setBgError(null);
+    setBgLoading(true);
+    try {
+      let dataUrl: string;
+      if (isPDF(file)) {
+        dataUrl = await pdfFirstPageToDataURL(file);
+      } else {
+        dataUrl = await readFileAsDataURL(file);
+      }
+      setBackgroundImage(dataUrl);
+      if (window.innerWidth < 1024) onClose();
+    } catch (e: any) {
+      setBgError(e?.message || "Failed to load background.");
+    } finally {
+      setBgLoading(false);
+    }
   };
 
   const tile =
     "flex flex-col items-center justify-center gap-1 rounded-lg border border-border bg-surface2 p-3 text-xs font-medium text-fg hover:border-accent hover:bg-surface transition";
 
   return (
-    <aside className="w-64 flex-shrink-0 border-r border-border bg-surface overflow-y-auto">
-      <div className="p-4 space-y-6">
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
-            Add-ons
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            <button className={tile} onClick={addText}>
-              <Type size={20} /> Text
-            </button>
-            <button className={tile} onClick={() => fileRef.current?.click()}>
-              <ImgIcon size={20} /> Logo
-            </button>
-            <button className={tile} onClick={addQR}>
-              <QrCode size={20} /> QR Code
-            </button>
-            <button className={tile} onClick={addRect}>
-              <Square size={20} /> Rectangle
-            </button>
-            <button className={tile} onClick={addCircle}>
-              <Circle size={20} /> Circle
-            </button>
-            <button className={tile} onClick={addLine}>
-              <Minus size={20} /> Line
+    <>
+      {/* Overlay for mobile */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      <aside
+        className={`
+        fixed lg:static top-14 bottom-0 left-0 z-50
+        w-64 flex-shrink-0 border-r border-border bg-surface overflow-y-auto
+        transition-transform duration-300 ease-in-out
+        ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        ${!open && "lg:block hidden"}
+      `}
+      >
+        <div className="p-4 space-y-6">
+          <div className="flex items-center justify-between lg:hidden mb-2">
+            <h2 className="font-semibold">Add Elements</h2>
+            <button className="icon-btn" onClick={onClose}>
+              <X size={20} />
             </button>
           </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onUploadImage(f);
-              e.currentTarget.value = "";
-            }}
-          />
-        </div>
 
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
-            Template Background
-          </h3>
-          <button
-            className="w-full btn-secondary"
-            onClick={() => bgFileRef.current?.click()}
-          >
-            <Upload size={16} />
-            Upload image
-          </button>
-          {doc.backgroundImage && (
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
+              Add-ons
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <button className={tile} onClick={addText}>
+                <Type size={20} /> Text
+              </button>
+              <button className={tile} onClick={() => fileRef.current?.click()}>
+                <ImgIcon size={20} /> Logo
+              </button>
+              <button className={tile} onClick={addQR}>
+                <QrCode size={20} /> QR Code
+              </button>
+              <button className={tile} onClick={addRect}>
+                <Square size={20} /> Rectangle
+              </button>
+              <button className={tile} onClick={addCircle}>
+                <Circle size={20} /> Circle
+              </button>
+              <button className={tile} onClick={addLine}>
+                <Minus size={20} /> Line
+              </button>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onUploadImage(f);
+                e.currentTarget.value = "";
+              }}
+            />
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
+              Template Background
+            </h3>
             <button
-              className="w-full btn-ghost mt-2 text-xs"
-              onClick={() => setBackgroundImage(undefined)}
+              className="w-full btn-secondary"
+              onClick={() => bgFileRef.current?.click()}
+              disabled={bgLoading}
             >
-              Remove background
+              {bgLoading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Upload size={16} />
+              )}
+              {bgLoading ? "Processing…" : "Upload image / PDF"}
             </button>
-          )}
-          <input
-            ref={bgFileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/svg+xml"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onUploadBackground(f);
-              e.currentTarget.value = "";
-            }}
-          />
+            <p className="text-[11px] text-muted mt-1">
+              PNG, JPG, SVG or PDF (first page).
+            </p>
+            {bgError && (
+              <p className="text-xs text-danger mt-2">{bgError}</p>
+            )}
+            {doc.backgroundImage && (
+              <button
+                className="w-full btn-ghost mt-2 text-xs"
+                onClick={() => setBackgroundImage(undefined)}
+              >
+                Remove background
+              </button>
+            )}
+            <input
+              ref={bgFileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,application/pdf,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onUploadBackground(f);
+                e.currentTarget.value = "";
+              }}
+            />
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

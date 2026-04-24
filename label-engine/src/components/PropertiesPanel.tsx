@@ -23,6 +23,7 @@ import {
   Minus,
   Plus,
   Tag,
+  X,
 } from "lucide-react";
 import { useStore } from "../store";
 import type {
@@ -475,7 +476,12 @@ function elementLabel(el: LabelElement) {
   return "Line";
 }
 
-export default function PropertiesPanel() {
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function PropertiesPanel({ open, onClose }: Props) {
   const {
     doc,
     selectedIds,
@@ -499,192 +505,220 @@ export default function PropertiesPanel() {
   const first = doc.elements.find((e) => selectedIds.includes(e.id));
 
   return (
-    <aside className="w-80 flex-shrink-0 border-l border-border bg-surface overflow-y-auto">
-      <div className="p-4 border-b border-border">
-        {!first ? (
-          <div className="text-sm text-muted text-center py-6">
-            No element selected.
-            <br />
-            Click an element on the canvas to edit.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-fg flex items-center gap-2">
-                {iconFor(first.type)}
-                Properties
-              </h3>
-              <div className="flex gap-1">
-                <button
-                  className="icon-btn"
-                  title="Duplicate (Ctrl+D)"
-                  onClick={duplicateSelected}
-                >
-                  <Copy size={16} />
-                </button>
-                <button
-                  className="icon-btn"
-                  title={first.locked ? "Unlock" : "Lock"}
-                  onClick={() =>
-                    updateElement(first.id, { locked: !first.locked })
-                  }
-                >
-                  {first.locked ? <Unlock size={16} /> : <Lock size={16} />}
-                </button>
-                <button
-                  className="icon-btn hover:text-danger"
-                  title="Delete (Delete)"
-                  onClick={deleteSelected}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
+    <>
+      {/* Overlay for mobile */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
 
-            <div className="flex gap-1">
-              <button
-                className="btn-secondary flex-1 text-xs py-1.5"
-                onClick={bringToFront}
-                title="Bring to front"
-              >
-                <ArrowUpToLine size={14} /> Front
-              </button>
-              <button
-                className="btn-secondary flex-1 text-xs py-1.5"
-                onClick={bringForward}
-              >
-                <ArrowUp size={14} /> +1
-              </button>
-              <button
-                className="btn-secondary flex-1 text-xs py-1.5"
-                onClick={sendBackward}
-              >
-                <ArrowDown size={14} /> -1
-              </button>
-              <button
-                className="btn-secondary flex-1 text-xs py-1.5"
-                onClick={sendToBack}
-                title="Send to back"
-              >
-                <ArrowDownToLine size={14} /> Back
-              </button>
-            </div>
-
-            <CommonBox el={first} />
-
-            {first.type === "text" && <TextEditor el={first as TextElement} />}
-            {first.type === "image" && (
-              <ImageEditor el={first as ImageElement} />
-            )}
-            {first.type === "qrcode" && (
-              <QRCodeEditor el={first as QRCodeElement} />
-            )}
-            {first.type === "rect" && <RectEditor el={first as RectElement} />}
-            {first.type === "circle" && (
-              <CircleEditor el={first as CircleElement} />
-            )}
-            {first.type === "line" && <LineEditor el={first as LineElement} />}
-          </div>
-        )}
-      </div>
-
-      {/* Labels in the current template */}
-      {currentTemplate && currentTemplateId && (
+      <aside
+        className={`
+        fixed lg:static top-14 bottom-0 right-0 z-50
+        w-80 flex-shrink-0 border-l border-border bg-surface overflow-y-auto
+        transition-transform duration-300 ease-in-out
+        ${open ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
+        ${!open && "lg:block hidden"}
+      `}
+      >
         <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Labels in Template
-            </h3>
-            <button
-              className="icon-btn"
-              title="New label in this template"
-              onClick={() => createLabelInTemplate(currentTemplateId)}
-            >
-              <Plus size={14} />
+          <div className="flex items-center justify-between lg:hidden mb-4">
+            <h2 className="font-semibold">Properties</h2>
+            <button className="icon-btn" onClick={onClose}>
+              <X size={20} />
             </button>
           </div>
+
+          {!first ? (
+            <div className="text-sm text-muted text-center py-6">
+              No element selected.
+              <br />
+              Click an element on the canvas to edit.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-fg flex items-center gap-2">
+                  {iconFor(first.type)}
+                  Properties
+                </h3>
+                <div className="flex gap-1">
+                  <button
+                    className="icon-btn"
+                    title="Duplicate (Ctrl+D)"
+                    onClick={duplicateSelected}
+                  >
+                    <Copy size={16} />
+                  </button>
+                  <button
+                    className="icon-btn"
+                    title={first.locked ? "Unlock" : "Lock"}
+                    onClick={() =>
+                      updateElement(first.id, { locked: !first.locked })
+                    }
+                  >
+                    {first.locked ? <Unlock size={16} /> : <Lock size={16} />}
+                  </button>
+                  <button
+                    className="icon-btn hover:text-danger"
+                    title="Delete (Delete)"
+                    onClick={deleteSelected}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-1">
+                <button
+                  className="btn-secondary flex-1 text-xs py-1.5 px-1"
+                  onClick={bringToFront}
+                  title="Bring to front"
+                >
+                  <ArrowUpToLine size={14} /> Front
+                </button>
+                <button
+                  className="btn-secondary flex-1 text-xs py-1.5 px-1"
+                  onClick={bringForward}
+                >
+                  <ArrowUp size={14} /> +1
+                </button>
+                <button
+                  className="btn-secondary flex-1 text-xs py-1.5 px-1"
+                  onClick={sendBackward}
+                >
+                  <ArrowDown size={14} /> -1
+                </button>
+                <button
+                  className="btn-secondary flex-1 text-xs py-1.5 px-1"
+                  onClick={sendToBack}
+                  title="Send to back"
+                >
+                  <ArrowDownToLine size={14} /> Back
+                </button>
+              </div>
+
+              <CommonBox el={first} />
+
+              {first.type === "text" && <TextEditor el={first as TextElement} />}
+              {first.type === "image" && (
+                <ImageEditor el={first as ImageElement} />
+              )}
+              {first.type === "qrcode" && (
+                <QRCodeEditor el={first as QRCodeElement} />
+              )}
+              {first.type === "rect" && <RectEditor el={first as RectElement} />}
+              {first.type === "circle" && (
+                <CircleEditor el={first as CircleElement} />
+              )}
+              {first.type === "line" && <LineEditor el={first as LineElement} />}
+            </div>
+          )}
+        </div>
+
+        {/* Labels in the current template */}
+        {currentTemplate && currentTemplateId && (
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Labels in Template
+              </h3>
+              <button
+                className="icon-btn"
+                title="New label in this template"
+                onClick={() => createLabelInTemplate(currentTemplateId)}
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            <ul className="space-y-1">
+              {currentTemplate.labels.map((l) => {
+                const isCurrent = l.id === currentLabelId;
+                return (
+                  <li
+                    key={l.id}
+                    className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm transition ${
+                      isCurrent
+                        ? "bg-accent-soft text-accent"
+                        : "hover:bg-surface2 text-fg"
+                    }`}
+                  >
+                    <button
+                      className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                      onClick={() => {
+                        if (!isCurrent) openLabel(currentTemplateId, l.id);
+                      }}
+                      title={isCurrent ? "Current label" : "Switch to this label"}
+                    >
+                      <Tag size={13} className="flex-shrink-0" />
+                      <span className="truncate">{l.name}</span>
+                    </button>
+                    <button
+                      className="icon-btn w-6 h-6"
+                      title="Duplicate label"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        duplicateLabel(currentTemplateId, l.id);
+                      }}
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {/* Layers */}
+        <div className="p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+            Layers
+          </h3>
           <ul className="space-y-1">
-            {currentTemplate.labels.map((l) => {
-              const isCurrent = l.id === currentLabelId;
+            {[...doc.elements].reverse().map((el) => {
+              const isSel = selectedIds.includes(el.id);
+              const hidden = el.visible === false;
               return (
                 <li
-                  key={l.id}
-                  className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm transition ${
-                    isCurrent
+                  key={el.id}
+                  className={`flex items-center gap-1 rounded px-2 py-1.5 text-sm transition ${
+                    isSel
                       ? "bg-accent-soft text-accent"
                       : "hover:bg-surface2 text-fg"
-                  }`}
+                  } ${hidden ? "opacity-50" : ""}`}
                 >
                   <button
                     className="flex items-center gap-2 min-w-0 flex-1 text-left"
                     onClick={() => {
-                      if (!isCurrent) openLabel(currentTemplateId, l.id);
+                      setSelection([el.id]);
+                      if (window.innerWidth < 1024) onClose();
                     }}
-                    title={isCurrent ? "Current label" : "Switch to this label"}
                   >
-                    <Tag size={13} className="flex-shrink-0" />
-                    <span className="truncate">{l.name}</span>
+                    {iconFor(el.type)}
+                    <span className="truncate">{elementLabel(el)}</span>
                   </button>
                   <button
                     className="icon-btn w-6 h-6"
-                    title="Duplicate label"
+                    title={hidden ? "Show" : "Hide"}
                     onClick={(e) => {
                       e.stopPropagation();
-                      duplicateLabel(currentTemplateId, l.id);
+                      updateElement(el.id, { visible: hidden });
                     }}
                   >
-                    <Copy size={12} />
+                    {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </li>
               );
             })}
+            {doc.elements.length === 0 && (
+              <li className="text-xs text-muted text-center py-3">No layers</li>
+            )}
           </ul>
         </div>
-      )}
-
-      {/* Layers */}
-      <div className="p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
-          Layers
-        </h3>
-        <ul className="space-y-1">
-          {[...doc.elements].reverse().map((el) => {
-            const isSel = selectedIds.includes(el.id);
-            const hidden = el.visible === false;
-            return (
-              <li
-                key={el.id}
-                className={`flex items-center gap-1 rounded px-2 py-1.5 text-sm transition ${
-                  isSel
-                    ? "bg-accent-soft text-accent"
-                    : "hover:bg-surface2 text-fg"
-                } ${hidden ? "opacity-50" : ""}`}
-              >
-                <button
-                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
-                  onClick={() => setSelection([el.id])}
-                >
-                  {iconFor(el.type)}
-                  <span className="truncate">{elementLabel(el)}</span>
-                </button>
-                <button
-                  className="icon-btn w-6 h-6"
-                  title={hidden ? "Show" : "Hide"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    updateElement(el.id, { visible: hidden });
-                  }}
-                >
-                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </li>
-            );
-          })}
-          {doc.elements.length === 0 && (
-            <li className="text-xs text-muted text-center py-3">No layers</li>
-          )}
-        </ul>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

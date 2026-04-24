@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, X, AlertTriangle, QrCode } from "lucide-react";
+import { Check, X, AlertTriangle, QrCode, ZoomIn } from "lucide-react";
 import QRCode from "qrcode";
 import Modal from "./Modal";
 import { useStore } from "../store";
@@ -123,11 +123,28 @@ export default function PreviewModal({
 }: Props) {
   const { doc } = useStore();
   const [scanned, setScanned] = useState<Record<string, boolean>>({});
+  const [zoomed, setZoomed] = useState(false);
 
   // Reset confirmations each time modal reopens
   useEffect(() => {
-    if (open) setScanned({});
+    if (open) {
+      setScanned({});
+      setZoomed(false);
+    }
   }, [open]);
+
+  // Esc closes zoom when active
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setZoomed(false);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [zoomed]);
 
   const qrs = useMemo(
     () =>
@@ -264,18 +281,40 @@ export default function PreviewModal({
       }
     >
       <div className="grid md:grid-cols-[1fr_320px] gap-6">
-        <div className="flex items-center justify-center bg-bg rounded-lg p-4 min-h-[240px]">
+        <div className="relative flex items-center justify-center bg-bg rounded-lg p-4 min-h-[240px]">
           {previewDataUrl ? (
-            <img
-              src={previewDataUrl}
-              alt="Preview"
-              className="max-w-full max-h-[50vh] shadow-2xl bg-white"
-              style={{
-                aspectRatio: doc
-                  ? `${doc.size.widthIn} / ${doc.size.heightIn}`
-                  : undefined,
-              }}
-            />
+            <>
+              <button
+                type="button"
+                className="group relative block"
+                onClick={() => setZoomed(true)}
+                title="Click to zoom"
+              >
+                <img
+                  src={previewDataUrl}
+                  alt="Preview"
+                  className="max-w-full max-h-[50vh] shadow-2xl bg-white cursor-zoom-in"
+                  style={{
+                    aspectRatio: doc
+                      ? `${doc.size.widthIn} / ${doc.size.heightIn}`
+                      : undefined,
+                  }}
+                />
+                <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition bg-black/30">
+                  <span className="flex items-center gap-2 bg-black/70 text-white text-sm px-3 py-1.5 rounded-full">
+                    <ZoomIn size={16} /> Zoom
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                className="absolute top-6 right-6 icon-btn bg-black/70 text-white hover:bg-black"
+                onClick={() => setZoomed(true)}
+                title="Zoom preview"
+              >
+                <ZoomIn size={16} />
+              </button>
+            </>
           ) : (
             <div className="text-muted text-sm">Generating preview…</div>
           )}
@@ -333,6 +372,36 @@ export default function PreviewModal({
           )}
         </div>
       </div>
+
+      {/* Fullscreen zoom lightbox */}
+      {zoomed && previewDataUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-6 cursor-zoom-out"
+          onClick={() => setZoomed(false)}
+        >
+          <button
+            className="absolute top-4 right-4 icon-btn bg-black/70 text-white hover:bg-black"
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomed(false);
+            }}
+            title="Close (Esc)"
+          >
+            <X size={18} />
+          </button>
+          <img
+            src={previewDataUrl}
+            alt="Preview (zoomed)"
+            className="max-w-[95vw] max-h-[90vh] shadow-2xl bg-white"
+            style={{
+              aspectRatio: doc
+                ? `${doc.size.widthIn} / ${doc.size.heightIn}`
+                : undefined,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* QR scan confirmation */}
       {qrs.length > 0 && (

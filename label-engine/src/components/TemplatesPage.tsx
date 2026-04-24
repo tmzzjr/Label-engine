@@ -171,42 +171,43 @@ export default function TemplatesPage() {
   const isDetail = view === "templateDetail" && currentTemplate;
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto flex flex-col">
       {/* Top nav */}
-      <header className="h-14 px-6 flex items-center gap-3 border-b border-border bg-surface">
+      <header className="h-14 px-4 sm:px-6 flex items-center gap-2 sm:gap-3 border-b border-border bg-surface flex-shrink-0">
         {isDetail && (
           <button className="icon-btn" title="Back" onClick={goTemplates}>
             <ArrowLeft size={18} />
           </button>
         )}
-        <div className="w-8 h-8 rounded-md bg-accent text-white flex items-center justify-center font-bold">
-          L
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="outfitMD Logo" className="h-7 sm:h-8 w-auto" />
         </div>
-        <span className="font-semibold">Label Engine</span>
-        <span className="text-muted mx-2">/</span>
-        {isDetail ? (
-          <>
-            <button
-              className="text-muted hover:text-fg"
-              onClick={goTemplates}
-            >
-              Templates
-            </button>
-            <span className="text-muted">/</span>
-            <span className="font-medium">{currentTemplate!.name}</span>
-          </>
-        ) : (
-          <span className="font-medium">Templates</span>
-        )}
+        <span className="text-muted mx-1 sm:mx-2">/</span>
+        <div className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base min-w-0">
+          {isDetail ? (
+            <>
+              <button
+                className="text-muted hover:text-fg whitespace-nowrap truncate"
+                onClick={goTemplates}
+              >
+                Templates
+              </button>
+              <span className="text-muted">/</span>
+              <span className="font-medium truncate">{currentTemplate!.name}</span>
+            </>
+          ) : (
+            <span className="font-medium">Templates</span>
+          )}
+        </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-8">
+      <main className="max-w-6xl w-full mx-auto p-4 sm:p-8">
         {!isDetail ? (
           <>
-            <div className="flex items-end justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4">
               <div>
-                <h1 className="text-2xl font-semibold">Templates</h1>
-                <p className="text-muted text-sm mt-1">
+                <h1 className="text-xl sm:text-2xl font-semibold">Templates</h1>
+                <p className="text-muted text-xs sm:text-sm mt-1">
                   Choose a template to edit, or start from scratch. Each
                   template can contain multiple label variants.
                 </p>
@@ -214,7 +215,7 @@ export default function TemplatesPage() {
             </div>
 
             {creatingTpl ? (
-              <div className="card p-4 mb-6 flex items-center gap-2">
+              <div className="card p-3 sm:p-4 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   autoFocus
                   className="input flex-1"
@@ -233,30 +234,32 @@ export default function TemplatesPage() {
                     }
                   }}
                 />
-                <button
-                  className="btn-primary"
-                  disabled={!newTplName.trim()}
-                  onClick={() => {
-                    createTemplate(newTplName.trim());
-                    setNewTplName("");
-                    setCreatingTpl(false);
-                  }}
-                >
-                  Create
-                </button>
-                <button
-                  className="btn-ghost"
-                  onClick={() => {
-                    setCreatingTpl(false);
-                    setNewTplName("");
-                  }}
-                >
-                  Cancel
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    className="btn-primary flex-1 sm:flex-initial"
+                    disabled={!newTplName.trim()}
+                    onClick={() => {
+                      createTemplate(newTplName.trim());
+                      setNewTplName("");
+                      setCreatingTpl(false);
+                    }}
+                  >
+                    Create
+                  </button>
+                  <button
+                    className="btn-ghost flex-1 sm:flex-initial"
+                    onClick={() => {
+                      setCreatingTpl(false);
+                      setNewTplName("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : null}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <NewCard
                 onClick={() => setCreatingTpl(true)}
                 label="New Template"
@@ -288,20 +291,20 @@ export default function TemplatesPage() {
           </>
         ) : (
           <>
-            <div className="flex items-end justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4">
               <div>
-                <h1 className="text-2xl font-semibold flex items-center gap-3">
+                <h1 className="text-xl sm:text-2xl font-semibold flex items-center gap-3">
                   <Tag size={20} className="text-accent" />
                   {currentTemplate!.name}
                 </h1>
-                <p className="text-muted text-sm mt-1">
+                <p className="text-muted text-xs sm:text-sm mt-1">
                   Labels in this template. Each one shares the template design
                   but can have different text, SKU, QR code, etc.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <NewCard
                 onClick={() =>
                   createLabelInTemplate(currentTemplate!.id, "New Label")
