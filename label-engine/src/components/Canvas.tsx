@@ -32,7 +32,7 @@ import {
 import AlignmentGuides from "./AlignmentGuides";
 import type { Guide } from "./AlignmentGuides";
 
-const SNAP_THRESHOLD = 4; // px
+const SNAP_THRESHOLD = 4;
 
 export interface CanvasHandle {
   toDataURL: (pixelRatio?: number) => string;
@@ -88,10 +88,28 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
-  const labelW = inToPx(doc.size.widthIn);
-  const labelH = inToPx(doc.size.heightIn);
+  // Inline text editor state
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [editingRect, setEditingRect] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    fontSize: number;
+    fontFamily: string;
+    color: string;
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    align: "left" | "center" | "right";
+    lineHeight: number;
+    rotation: number;
+    initial: string;
+  } | null>(null);
 
-  // Fit-to-viewport scale
+  const labelW = doc ? inToPx(doc.size.widthIn) : 0;
+  const labelH = doc ? inToPx(doc.size.heightIn) : 0;
+
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
@@ -104,14 +122,13 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
   }, []);
 
   const scale = useMemo(() => {
-    if (!containerSize.w || !containerSize.h) return 1;
+    if (!containerSize.w || !containerSize.h || !labelW || !labelH) return 1;
     const pad = 48;
     const sx = (containerSize.w - pad) / labelW;
     const sy = (containerSize.h - pad) / labelH;
     return Math.min(sx, sy, 3);
   }, [containerSize, labelW, labelH]);
 
-  // Attach Transformer to selected nodes
   useEffect(() => {
     const tr = trRef.current;
     if (!tr) return;
@@ -120,22 +137,17 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
       .filter(Boolean) as Konva.Node[];
     tr.nodes(nodes);
     tr.getLayer()?.batchDraw();
-  }, [selectedIds, doc.elements]);
+  }, [selectedIds, doc?.elements]);
 
   useImperativeHandle(ref, () => ({
     toDataURL: (pixelRatio = 1) =>
       stageRef.current?.toDataURL({
         pixelRatio,
         mimeType: "image/png",
-        x: 0,
-        y: 0,
-        width: labelW * scale,
-        height: labelH * scale,
       }) ?? "",
     getStage: () => stageRef.current,
   }));
 
-  // Keyboard nudge handled in App — canvas handles background click to deselect.
   const handleStageMouseDown = (
     e: Konva.KonvaEventObject<MouseEvent | TouchEvent>
   ) => {
@@ -148,12 +160,12 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     }
   };
 
-  // Compute guides and apply snapping while dragging a single element.
   function computeGuides(
     moving: LabelElement,
     proposedX: number,
     proposedY: number
   ): { x: number; y: number; guides: Guide[] } {
+    if (!doc) return { x: proposedX, y: proposedY, guides: [] };
     const others = doc.elements.filter((e) => e.id !== moving.id);
     const movingLeft = proposedX;
     const movingRight = proposedX + moving.width;
@@ -185,7 +197,6 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     let newY = proposedY;
     const activeGuides: Guide[] = [];
 
-    // Vertical guides (affect X position)
     const vCandidates = [
       { val: movingLeft, offset: 0 },
       { val: movingCenterX, offset: -moving.width / 2 },
@@ -244,9 +255,8 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     return { x: newX, y: newY, guides: activeGuides };
   }
 
-  // Hook into element drag via layer's dragmove
   const onAnyDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-    if (!showGuides) return;
+    if (!showGuides || !doc) return;
     const node = e.target;
     const id = node.id();
     const moving = doc.elements.find((x) => x.id === id);
@@ -268,13 +278,48 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     else delete nodeRefs.current[id];
   };
 
+  // Inline text editor: double-click a text element to edit it in place.
+  const startInlineEdit = (el: TextElement) => {
+    const wrapper = wrapperRef.current?.getBoundingClientRect();
+    const stage = stageRef.current;
+    if (!wrapper || !stage) return;
+    const stageBox = stage.container().getBoundingClientRect();
+    const originX = stageBox.left - wrapper.left;
+    const originY = stageBox.top - wrapper.top;
+    setEditingTextId(el.id);
+    setEditingRect({
+      left: originX + el.x * scale,
+      top: originY + el.y * scale,
+      width: el.width * scale,
+      height: Math.max(el.height * scale, el.fontSize * scale * el.lineHeight),
+      fontSize: el.fontSize * scale,
+      fontFamily: el.fontFamily,
+      color: el.fill,
+      bold: el.bold,
+      italic: el.italic,
+      underline: el.underline,
+      align: el.align,
+      lineHeight: el.lineHeight,
+      rotation: el.rotation,
+      initial: el.text,
+    });
+  };
+
+  const finishInlineEdit = (nextText?: string) => {
+    if (editingTextId && nextText !== undefined) {
+      updateElement(editingTextId, { text: nextText }, true);
+    }
+    setEditingTextId(null);
+    setEditingRect(null);
+  };
+
   const renderElement = (el: LabelElement) => {
-    const draggable = !el.locked;
+    const draggable = !el.locked && el.id !== editingTextId;
     const patchFn = (patch: Partial<LabelElement>, shouldCommit = true) =>
       updateElement(el.id, patch, shouldCommit);
 
     const selectEl = (e?: any) => {
-      e?.cancelBubble !== undefined && (e.cancelBubble = true);
+      if (e?.cancelBubble !== undefined) e.cancelBubble = true;
       setSelection([el.id]);
     };
     const commonProps = {
@@ -289,6 +334,8 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
           <TextElementNode
             key={el.id}
             el={el as TextElement}
+            hidden={el.id === editingTextId}
+            onDoubleClick={() => startInlineEdit(el as TextElement)}
             {...commonProps}
             onChange={patchFn as any}
           />
@@ -344,7 +391,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
   };
 
   const gridLines = useMemo(() => {
-    if (!showGrid) return null;
+    if (!showGrid || !labelW) return null;
     const lines: ReactElement[] = [];
     for (let x = gridSize; x < labelW; x += gridSize) {
       lines.push(
@@ -355,6 +402,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
           width={1}
           height={labelH}
           fill="#e5e7eb"
+          opacity={0.35}
           listening={false}
         />
       );
@@ -368,6 +416,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
           width={labelW}
           height={1}
           fill="#e5e7eb"
+          opacity={0.35}
           listening={false}
         />
       );
@@ -375,22 +424,67 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     return lines;
   }, [showGrid, gridSize, labelW, labelH]);
 
+  // Render QR link tooltips for selected QR elements (DOM overlay)
+  const qrTooltips = useMemo(() => {
+    if (!doc) return null;
+    const stage = stageRef.current;
+    const wrapper = wrapperRef.current?.getBoundingClientRect();
+    if (!stage || !wrapper) return null;
+    const stageBox = stage.container().getBoundingClientRect();
+    const originX = stageBox.left - wrapper.left;
+    const originY = stageBox.top - wrapper.top;
+    return doc.elements
+      .filter((e) => e.type === "qrcode" && selectedIds.includes(e.id))
+      .map((e) => {
+        const q = e as QElement;
+        const left = originX + (q.x + q.width / 2) * scale;
+        const top = originY + (q.y + q.height + 4) * scale;
+        return (
+          <div
+            key={`tt-${q.id}`}
+            className="pointer-events-none absolute -translate-x-1/2 text-xs px-2 py-1 rounded border shadow"
+            style={{
+              left,
+              top,
+              background: q.value ? "rgba(22, 25, 32, 0.95)" : "#7f1d1d",
+              color: "#fff",
+              borderColor: q.value ? "#363c48" : "#ef4444",
+              maxWidth: 240,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {q.value ? `🔗 ${q.value}` : "⚠ No link assigned"}
+          </div>
+        );
+      });
+  }, [doc, selectedIds, scale, containerSize]);
+
+  if (!doc) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted">
+        No label selected.
+      </div>
+    );
+  }
+
   return (
     <div
       ref={wrapperRef}
-      className="relative flex-1 overflow-hidden bg-brand-100"
+      className="relative flex-1 overflow-hidden bg-bg"
       style={{ minHeight: 0 }}
     >
       <div
         className="absolute inset-0 flex items-center justify-center"
         style={{
           backgroundImage:
-            "radial-gradient(rgba(15,23,42,0.06) 1px, transparent 1px)",
+            "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)",
           backgroundSize: "18px 18px",
         }}
       >
         <div
-          className="shadow-lg"
+          className="shadow-2xl"
           style={{
             width: labelW * scale,
             height: labelH * scale,
@@ -435,9 +529,9 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
                 ref={trRef}
                 rotateEnabled
                 anchorSize={8}
-                anchorStroke="#2563eb"
+                anchorStroke="#a855f7"
                 anchorFill="#ffffff"
-                borderStroke="#2563eb"
+                borderStroke="#a855f7"
                 borderDash={[4, 4]}
                 keepRatio={false}
                 boundBoxFunc={(oldBox, newBox) => {
@@ -445,7 +539,6 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
                   return newBox;
                 }}
               />
-              {/* Label border */}
               <Rect
                 x={0}
                 y={0}
@@ -461,10 +554,55 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
         </div>
       </div>
 
-      {/* Scale indicator */}
-      <div className="absolute bottom-3 right-3 text-xs text-brand-600 bg-white/90 border border-brand-200 rounded px-2 py-1">
-        {Math.round(scale * 100)}% • {doc.size.widthIn}" × {doc.size.heightIn}"
-        ({labelW}×{labelH}px @300DPI)
+      {/* QR tooltips overlay */}
+      {qrTooltips}
+
+      {/* Inline text editor */}
+      {editingRect && editingTextId && (
+        <textarea
+          autoFocus
+          defaultValue={editingRect.initial}
+          onBlur={(e) => finishInlineEdit(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              finishInlineEdit();
+            }
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              finishInlineEdit((e.target as HTMLTextAreaElement).value);
+            }
+          }}
+          style={{
+            position: "absolute",
+            left: editingRect.left,
+            top: editingRect.top,
+            width: editingRect.width,
+            minHeight: editingRect.height,
+            fontSize: editingRect.fontSize,
+            fontFamily: editingRect.fontFamily,
+            color: editingRect.color,
+            fontWeight: editingRect.bold ? 700 : 400,
+            fontStyle: editingRect.italic ? "italic" : "normal",
+            textDecoration: editingRect.underline ? "underline" : "none",
+            textAlign: editingRect.align,
+            lineHeight: editingRect.lineHeight,
+            transform: `rotate(${editingRect.rotation}deg)`,
+            transformOrigin: "top left",
+            background: "rgba(255,255,255,0.98)",
+            border: "2px solid #a855f7",
+            outline: "none",
+            resize: "none",
+            padding: "2px 4px",
+            zIndex: 20,
+            overflow: "hidden",
+          }}
+        />
+      )}
+
+      <div className="absolute bottom-3 right-3 text-xs text-muted bg-surface/90 border border-border rounded px-2 py-1">
+        {Math.round(scale * 100)}% · {doc.size.widthIn}" × {doc.size.heightIn}"
+        · {labelW}×{labelH}px @300DPI
       </div>
     </div>
   );

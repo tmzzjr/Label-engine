@@ -4,18 +4,18 @@ import { inToPx } from "./types";
 export const uid = () =>
   Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
-export function defaultDocument(): LabelDocument {
+export function emptyDocument(name = "Untitled Label"): LabelDocument {
   return {
     id: uid(),
-    name: "Untitled Label",
+    name,
     size: { widthIn: 0.75, heightIn: 1.75, name: '0.75" × 1.75"' },
     background: "#ffffff",
     elements: [],
   };
 }
 
-export function sampleDocument(): LabelDocument {
-  const doc = defaultDocument();
+export function starterDocument(name = "Untitled Label"): LabelDocument {
+  const doc = emptyDocument(name);
   const w = inToPx(doc.size.widthIn);
   const h = inToPx(doc.size.heightIn);
   doc.elements = [
@@ -127,15 +127,6 @@ export function clone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x));
 }
 
-export function withinBounds(el: LabelElement, w: number, h: number): boolean {
-  return (
-    el.x >= 0 &&
-    el.y >= 0 &&
-    el.x + el.width <= w + 0.5 &&
-    el.y + el.height <= h + 0.5
-  );
-}
-
 export function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -161,3 +152,6 @@ export const COMMON_FONTS = [
   "Comic Sans MS",
   "system-ui",
 ];
+
+// ignore unused in some compilations
+void ({} as LabelElement);

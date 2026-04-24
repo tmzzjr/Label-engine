@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,26 +10,59 @@ import React, {
 import type {
   LabelDocument,
   LabelElement,
-  SavedTemplate,
   LabelSize,
+  SavedLabel,
+  Template,
 } from "./types";
-import { clone, sampleDocument, uid } from "./utils";
+import { clone, emptyDocument, starterDocument, uid } from "./utils";
 
 const HISTORY_LIMIT = 100;
-const LS_DOC_KEY = "label-engine:current-doc";
-const LS_TEMPLATES_KEY = "label-engine:templates";
+const LS_TEMPLATES_KEY = "label-engine:templates:v2";
+const LS_VIEW_STATE_KEY = "label-engine:view-state:v2";
 
-interface EditorState {
-  doc: LabelDocument;
+export type View = "templates" | "templateDetail" | "editor";
+
+interface StoreAPI {
+  // View routing
+  view: View;
+  goTemplates: () => void;
+  openTemplate: (templateId: string) => void;
+  openLabel: (templateId: string, labelId: string) => void;
+
+  // Templates
+  templates: Template[];
+  currentTemplateId: string | null;
+  currentLabelId: string | null;
+  currentTemplate: Template | null;
+  currentLabel: SavedLabel | null;
+  doc: LabelDocument | null;
+
+  createTemplate: (name: string) => void;
+  renameTemplate: (id: string, name: string) => void;
+  duplicateTemplate: (id: string) => void;
+  deleteTemplate: (id: string) => void;
+
+  createLabelInTemplate: (templateId: string, name?: string) => void;
+  duplicateLabel: (templateId: string, labelId: string) => void;
+  renameLabel: (templateId: string, labelId: string, name: string) => void;
+  deleteLabel: (templateId: string, labelId: string) => void;
+  setLabelThumbnail: (
+    templateId: string,
+    labelId: string,
+    dataUrl: string
+  ) => void;
+  setTemplateThumbnail: (templateId: string, dataUrl: string) => void;
+
+  // Editor ops on current doc
   selectedIds: string[];
   snapToGrid: boolean;
   gridSize: number;
   showGuides: boolean;
-  templates: SavedTemplate[];
-}
 
-interface StoreAPI extends EditorState {
-  setDoc: (updater: (d: LabelDocument) => LabelDocument, commit?: boolean) => void;
+  setDoc: (
+    updater: (d: LabelDocument) => LabelDocument,
+    commit?: boolean
+  ) => void;
   commit: () => void;
   undo: () => void;
   redo: () => void;
@@ -37,8 +71,11 @@ interface StoreAPI extends EditorState {
 
   setSelection: (ids: string[]) => void;
   addElement: (el: LabelElement) => void;
-  updateElement: (id: string, patch: Partial<LabelElement>, commit?: boolean) => void;
-  updateElements: (patches: Record<string, Partial<LabelElement>>, commit?: boolean) => void;
+  updateElement: (
+    id: string,
+    patch: Partial<LabelElement>,
+    commit?: boolean
+  ) => void;
   deleteSelected: () => void;
   duplicateSelected: () => void;
   bringForward: () => void;
@@ -55,19 +92,13 @@ interface StoreAPI extends EditorState {
   setGridSize: (n: number) => void;
   setShowGuides: (on: boolean) => void;
 
-  newDocument: () => void;
-  loadDocument: (doc: LabelDocument) => void;
-  saveProjectToDisk: () => void;
-  loadProjectFromFile: (file: File) => Promise<void>;
-
-  saveAsTemplate: (name: string, thumbnail?: string) => void;
-  deleteTemplate: (id: string) => void;
-  loadTemplate: (id: string) => void;
+  saveDocAsJson: () => void;
+  loadDocFromFile: (file: File) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreAPI | null>(null);
 
-function loadTemplates(): SavedTemplate[] {
+function loadTemplates(): Template[] {
   try {
     const raw = localStorage.getItem(LS_TEMPLATES_KEY);
     if (!raw) return [];
@@ -76,99 +107,152 @@ function loadTemplates(): SavedTemplate[] {
     return [];
   }
 }
-
-function persistTemplates(list: SavedTemplate[]) {
+function persistTemplates(list: Template[]) {
   try {
     localStorage.setItem(LS_TEMPLATES_KEY, JSON.stringify(list));
   } catch {
-    // storage full or unavailable; fail silently
+    /* ignore quota */
   }
 }
 
-function loadInitialDoc(): LabelDocument {
+interface ViewState {
+  view: View;
+  currentTemplateId: string | null;
+  currentLabelId: string | null;
+}
+function loadViewState(): ViewState {
   try {
-    const raw = localStorage.getItem(LS_DOC_KEY);
-    if (raw) return JSON.parse(raw) as LabelDocument;
+    const raw = localStorage.getItem(LS_VIEW_STATE_KEY);
+    if (raw) return JSON.parse(raw);
   } catch {
     /* ignore */
   }
-  return sampleDocument();
+  return { view: "templates", currentTemplateId: null, currentLabelId: null };
+}
+function persistViewState(v: ViewState) {
+  try {
+    localStorage.setItem(LS_VIEW_STATE_KEY, JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
 }
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [doc, setDocState] = useState<LabelDocument>(() => loadInitialDoc());
+  const [templates, setTemplates] = useState<Template[]>(() => loadTemplates());
+  const initialView = loadViewState();
+  const [view, setView] = useState<View>(initialView.view);
+  const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(
+    initialView.currentTemplateId
+  );
+  const [currentLabelId, setCurrentLabelId] = useState<string | null>(
+    initialView.currentLabelId
+  );
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [gridSize, setGridSize] = useState(8);
   const [showGuides, setShowGuides] = useState(true);
-  const [templates, setTemplates] = useState<SavedTemplate[]>(() =>
-    loadTemplates()
-  );
 
   const past = useRef<LabelDocument[]>([]);
   const future = useRef<LabelDocument[]>([]);
-  const lastCommitted = useRef<LabelDocument>(doc);
+  const lastCommitted = useRef<LabelDocument | null>(null);
 
-  const [, bump] = useState(0);
-  const rerender = () => bump((x) => x + 1);
+  // Persist view state
+  useEffect(() => {
+    persistViewState({ view, currentTemplateId, currentLabelId });
+  }, [view, currentTemplateId, currentLabelId]);
 
-  const persist = useCallback((d: LabelDocument) => {
-    try {
-      localStorage.setItem(LS_DOC_KEY, JSON.stringify(d));
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const currentTemplate = useMemo(
+    () => templates.find((t) => t.id === currentTemplateId) ?? null,
+    [templates, currentTemplateId]
+  );
+  const currentLabel = useMemo(
+    () =>
+      currentTemplate?.labels.find((l) => l.id === currentLabelId) ?? null,
+    [currentTemplate, currentLabelId]
+  );
+
+  const doc = currentLabel?.doc ?? null;
+
+  // When current label changes, reset history
+  useEffect(() => {
+    past.current = [];
+    future.current = [];
+    lastCommitted.current = doc ? clone(doc) : null;
+    setSelectedIds([]);
+  }, [currentLabelId, currentTemplateId]);
+
+  const writeDoc = useCallback(
+    (next: LabelDocument) => {
+      setTemplates((tpls) =>
+        tpls.map((t) =>
+          t.id === currentTemplateId
+            ? {
+                ...t,
+                labels: t.labels.map((l) =>
+                  l.id === currentLabelId
+                    ? { ...l, doc: next, updatedAt: Date.now() }
+                    : l
+                ),
+              }
+            : t
+        )
+      );
+    },
+    [currentTemplateId, currentLabelId]
+  );
+
+  // Persist templates when changed
+  useEffect(() => {
+    persistTemplates(templates);
+  }, [templates]);
 
   const setDoc = useCallback(
-    (updater: (d: LabelDocument) => LabelDocument, commit = true) => {
-      setDocState((prev) => {
-        const next = updater(prev);
-        if (commit) {
-          past.current.push(lastCommitted.current);
-          if (past.current.length > HISTORY_LIMIT) past.current.shift();
-          future.current = [];
-          lastCommitted.current = next;
-          persist(next);
-          rerender();
-        }
-        return next;
-      });
+    (updater: (d: LabelDocument) => LabelDocument, shouldCommit = true) => {
+      if (!doc) return;
+      const next = updater(doc);
+      if (shouldCommit) {
+        if (lastCommitted.current)
+          past.current.push(clone(lastCommitted.current));
+        if (past.current.length > HISTORY_LIMIT) past.current.shift();
+        future.current = [];
+        lastCommitted.current = clone(next);
+      }
+      writeDoc(next);
     },
-    [persist]
+    [doc, writeDoc]
   );
 
   const commit = useCallback(() => {
-    if (lastCommitted.current === doc) return;
-    past.current.push(lastCommitted.current);
+    if (!doc) return;
+    if (
+      lastCommitted.current &&
+      JSON.stringify(lastCommitted.current) === JSON.stringify(doc)
+    )
+      return;
+    if (lastCommitted.current) past.current.push(clone(lastCommitted.current));
     if (past.current.length > HISTORY_LIMIT) past.current.shift();
     future.current = [];
-    lastCommitted.current = doc;
-    persist(doc);
-    rerender();
-  }, [doc, persist]);
+    lastCommitted.current = clone(doc);
+  }, [doc]);
 
   const undo = useCallback(() => {
+    if (!doc) return;
     const prev = past.current.pop();
     if (!prev) return;
-    future.current.push(lastCommitted.current);
-    lastCommitted.current = prev;
-    setDocState(clone(prev));
-    persist(prev);
-    rerender();
-  }, [persist]);
+    future.current.push(clone(doc));
+    lastCommitted.current = clone(prev);
+    writeDoc(prev);
+  }, [doc, writeDoc]);
 
   const redo = useCallback(() => {
-    const next = future.current.pop();
-    if (!next) return;
-    past.current.push(lastCommitted.current);
-    lastCommitted.current = next;
-    setDocState(clone(next));
-    persist(next);
-    rerender();
-  }, [persist]);
-
-  const setSelection = useCallback((ids: string[]) => setSelectedIds(ids), []);
+    if (!doc) return;
+    const nx = future.current.pop();
+    if (!nx) return;
+    past.current.push(clone(doc));
+    lastCommitted.current = clone(nx);
+    writeDoc(nx);
+  }, [doc, writeDoc]);
 
   const addElement = useCallback(
     (el: LabelElement) => {
@@ -185,21 +269,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           ...d,
           elements: d.elements.map((e) =>
             e.id === id ? ({ ...e, ...patch } as LabelElement) : e
-          ),
-        }),
-        shouldCommit
-      );
-    },
-    [setDoc]
-  );
-
-  const updateElements = useCallback(
-    (patches: Record<string, Partial<LabelElement>>, shouldCommit = true) => {
-      setDoc(
-        (d) => ({
-          ...d,
-          elements: d.elements.map((e) =>
-            patches[e.id] ? ({ ...e, ...patches[e.id] } as LabelElement) : e
           ),
         }),
         shouldCommit
@@ -258,7 +327,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return out;
     });
   }, [reorder]);
-
   const sendBackward = useCallback(() => {
     reorder((els, ids) => {
       const out = [...els];
@@ -270,14 +338,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return out;
     });
   }, [reorder]);
-
   const bringToFront = useCallback(() => {
     reorder((els, ids) => [
       ...els.filter((e) => !ids.includes(e.id)),
       ...els.filter((e) => ids.includes(e.id)),
     ]);
   }, [reorder]);
-
   const sendToBack = useCallback(() => {
     reorder((els, ids) => [
       ...els.filter((e) => ids.includes(e.id)),
@@ -290,7 +356,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [setDoc]
   );
   const setBackground = useCallback(
-    (color: string) => setDoc((d) => ({ ...d, background: color })),
+    (c: string) => setDoc((d) => ({ ...d, background: c })),
     [setDoc]
   );
   const setBackgroundImage = useCallback(
@@ -298,35 +364,218 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [setDoc]
   );
   const setDocName = useCallback(
-    (n: string) => setDoc((d) => ({ ...d, name: n })),
-    [setDoc]
-  );
-
-  const newDocument = useCallback(() => {
-    past.current = [];
-    future.current = [];
-    const d = sampleDocument();
-    lastCommitted.current = d;
-    setDocState(d);
-    setSelectedIds([]);
-    persist(d);
-  }, [persist]);
-
-  const loadDocument = useCallback(
-    (d: LabelDocument) => {
-      past.current.push(lastCommitted.current);
-      future.current = [];
-      const cloned = clone(d);
-      cloned.id = uid();
-      lastCommitted.current = cloned;
-      setDocState(cloned);
-      setSelectedIds([]);
-      persist(cloned);
+    (n: string) => {
+      setDoc((d) => ({ ...d, name: n }));
+      if (currentTemplateId && currentLabelId) {
+        setTemplates((tpls) =>
+          tpls.map((t) =>
+            t.id === currentTemplateId
+              ? {
+                  ...t,
+                  labels: t.labels.map((l) =>
+                    l.id === currentLabelId ? { ...l, name: n } : l
+                  ),
+                }
+              : t
+          )
+        );
+      }
     },
-    [persist]
+    [setDoc, currentTemplateId, currentLabelId]
   );
 
-  const saveProjectToDisk = useCallback(() => {
+  // Template CRUD
+  const createTemplate = useCallback((name: string) => {
+    const labelId = uid();
+    const templateId = uid();
+    const base = starterDocument(name);
+    const newTpl: Template = {
+      id: templateId,
+      name,
+      labels: [
+        {
+          id: labelId,
+          name: "Label 1",
+          doc: base,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ],
+      createdAt: Date.now(),
+    };
+    setTemplates((t) => [newTpl, ...t]);
+    setCurrentTemplateId(templateId);
+    setCurrentLabelId(labelId);
+    setView("editor");
+  }, []);
+
+  const renameTemplate = useCallback((id: string, name: string) => {
+    setTemplates((t) => t.map((x) => (x.id === id ? { ...x, name } : x)));
+  }, []);
+
+  const duplicateTemplate = useCallback((id: string) => {
+    setTemplates((tpls) => {
+      const src = tpls.find((t) => t.id === id);
+      if (!src) return tpls;
+      const copy: Template = {
+        ...clone(src),
+        id: uid(),
+        name: `${src.name} (copy)`,
+        createdAt: Date.now(),
+        labels: src.labels.map((l) => ({
+          ...clone(l),
+          id: uid(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          doc: { ...clone(l.doc), id: uid() },
+        })),
+      };
+      return [copy, ...tpls];
+    });
+  }, []);
+
+  const deleteTemplate = useCallback(
+    (id: string) => {
+      setTemplates((t) => t.filter((x) => x.id !== id));
+      if (currentTemplateId === id) {
+        setCurrentTemplateId(null);
+        setCurrentLabelId(null);
+        setView("templates");
+      }
+    },
+    [currentTemplateId]
+  );
+
+  const createLabelInTemplate = useCallback(
+    (templateId: string, name = "New Label") => {
+      const tpl = templates.find((t) => t.id === templateId);
+      if (!tpl) return;
+      // Copy base doc from first label or empty
+      const baseDoc = tpl.labels[0]?.doc
+        ? { ...clone(tpl.labels[0].doc), id: uid(), name }
+        : emptyDocument(name);
+      const newLabel: SavedLabel = {
+        id: uid(),
+        name,
+        doc: baseDoc,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      setTemplates((tpls) =>
+        tpls.map((t) =>
+          t.id === templateId
+            ? { ...t, labels: [...t.labels, newLabel] }
+            : t
+        )
+      );
+      setCurrentTemplateId(templateId);
+      setCurrentLabelId(newLabel.id);
+      setView("editor");
+    },
+    [templates]
+  );
+
+  const duplicateLabel = useCallback(
+    (templateId: string, labelId: string) => {
+      setTemplates((tpls) =>
+        tpls.map((t) => {
+          if (t.id !== templateId) return t;
+          const src = t.labels.find((l) => l.id === labelId);
+          if (!src) return t;
+          const dup: SavedLabel = {
+            ...clone(src),
+            id: uid(),
+            name: `${src.name} (copy)`,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            doc: { ...clone(src.doc), id: uid() },
+          };
+          return { ...t, labels: [...t.labels, dup] };
+        })
+      );
+    },
+    []
+  );
+
+  const renameLabel = useCallback(
+    (templateId: string, labelId: string, name: string) => {
+      setTemplates((tpls) =>
+        tpls.map((t) =>
+          t.id === templateId
+            ? {
+                ...t,
+                labels: t.labels.map((l) =>
+                  l.id === labelId ? { ...l, name, doc: { ...l.doc, name } } : l
+                ),
+              }
+            : t
+        )
+      );
+    },
+    []
+  );
+
+  const deleteLabel = useCallback(
+    (templateId: string, labelId: string) => {
+      setTemplates((tpls) =>
+        tpls.map((t) =>
+          t.id === templateId
+            ? { ...t, labels: t.labels.filter((l) => l.id !== labelId) }
+            : t
+        )
+      );
+      if (currentLabelId === labelId) {
+        setCurrentLabelId(null);
+        setView("templateDetail");
+      }
+    },
+    [currentLabelId]
+  );
+
+  const setLabelThumbnail = useCallback(
+    (templateId: string, labelId: string, dataUrl: string) => {
+      setTemplates((tpls) =>
+        tpls.map((t) =>
+          t.id === templateId
+            ? {
+                ...t,
+                labels: t.labels.map((l) =>
+                  l.id === labelId ? { ...l, thumbnail: dataUrl } : l
+                ),
+              }
+            : t
+        )
+      );
+    },
+    []
+  );
+
+  const setTemplateThumbnail = useCallback(
+    (templateId: string, dataUrl: string) => {
+      setTemplates((tpls) =>
+        tpls.map((t) =>
+          t.id === templateId ? { ...t, thumbnail: dataUrl } : t
+        )
+      );
+    },
+    []
+  );
+
+  // Navigation
+  const goTemplates = useCallback(() => setView("templates"), []);
+  const openTemplate = useCallback((id: string) => {
+    setCurrentTemplateId(id);
+    setView("templateDetail");
+  }, []);
+  const openLabel = useCallback((tid: string, lid: string) => {
+    setCurrentTemplateId(tid);
+    setCurrentLabelId(lid);
+    setView("editor");
+  }, []);
+
+  // Save/load current doc
+  const saveDocAsJson = useCallback(() => {
+    if (!doc) return;
     const blob = new Blob([JSON.stringify(doc, null, 2)], {
       type: "application/json",
     });
@@ -338,50 +587,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(url);
   }, [doc]);
 
-  const loadProjectFromFile = useCallback(
+  const loadDocFromFile = useCallback(
     async (file: File) => {
       const text = await file.text();
       try {
         const parsed = JSON.parse(text) as LabelDocument;
-        loadDocument(parsed);
-      } catch (e) {
+        if (currentTemplateId && currentLabelId) {
+          writeDoc({ ...parsed, id: uid() });
+        } else {
+          // import as new template
+          const labelId = uid();
+          const templateId = uid();
+          const tpl: Template = {
+            id: templateId,
+            name: parsed.name || "Imported Template",
+            labels: [
+              {
+                id: labelId,
+                name: parsed.name || "Label 1",
+                doc: { ...parsed, id: uid() },
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              },
+            ],
+            createdAt: Date.now(),
+          };
+          setTemplates((t) => [tpl, ...t]);
+          setCurrentTemplateId(templateId);
+          setCurrentLabelId(labelId);
+          setView("editor");
+        }
+      } catch {
         alert("Invalid project file.");
       }
     },
-    [loadDocument]
-  );
-
-  const saveAsTemplate = useCallback(
-    (name: string, thumbnail?: string) => {
-      const t: SavedTemplate = {
-        id: uid(),
-        name: name || doc.name || "Template",
-        doc: clone(doc),
-        createdAt: Date.now(),
-        thumbnail,
-      };
-      const next = [t, ...templates];
-      setTemplates(next);
-      persistTemplates(next);
-    },
-    [doc, templates]
-  );
-
-  const deleteTemplate = useCallback(
-    (id: string) => {
-      const next = templates.filter((t) => t.id !== id);
-      setTemplates(next);
-      persistTemplates(next);
-    },
-    [templates]
-  );
-
-  const loadTemplate = useCallback(
-    (id: string) => {
-      const t = templates.find((x) => x.id === id);
-      if (t) loadDocument(t.doc);
-    },
-    [templates, loadDocument]
+    [currentTemplateId, currentLabelId, writeDoc]
   );
 
   const canUndo = past.current.length > 0;
@@ -389,22 +629,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const api = useMemo<StoreAPI>(
     () => ({
+      view,
+      goTemplates,
+      openTemplate,
+      openLabel,
+      templates,
+      currentTemplateId,
+      currentLabelId,
+      currentTemplate,
+      currentLabel,
       doc,
+      createTemplate,
+      renameTemplate,
+      duplicateTemplate,
+      deleteTemplate,
+      createLabelInTemplate,
+      duplicateLabel,
+      renameLabel,
+      deleteLabel,
+      setLabelThumbnail,
+      setTemplateThumbnail,
       selectedIds,
       snapToGrid,
       gridSize,
       showGuides,
-      templates,
       setDoc,
       commit,
       undo,
       redo,
       canUndo,
       canRedo,
-      setSelection,
+      setSelection: setSelectedIds,
       addElement,
       updateElement,
-      updateElements,
       deleteSelected,
       duplicateSelected,
       bringForward,
@@ -418,31 +675,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setSnap: setSnapToGrid,
       setGridSize,
       setShowGuides,
-      newDocument,
-      loadDocument,
-      saveProjectToDisk,
-      loadProjectFromFile,
-      saveAsTemplate,
-      deleteTemplate,
-      loadTemplate,
+      saveDocAsJson,
+      loadDocFromFile,
     }),
     [
+      view,
+      goTemplates,
+      openTemplate,
+      openLabel,
+      templates,
+      currentTemplateId,
+      currentLabelId,
+      currentTemplate,
+      currentLabel,
       doc,
+      createTemplate,
+      renameTemplate,
+      duplicateTemplate,
+      deleteTemplate,
+      createLabelInTemplate,
+      duplicateLabel,
+      renameLabel,
+      deleteLabel,
+      setLabelThumbnail,
+      setTemplateThumbnail,
       selectedIds,
       snapToGrid,
       gridSize,
       showGuides,
-      templates,
       setDoc,
       commit,
       undo,
       redo,
       canUndo,
       canRedo,
-      setSelection,
       addElement,
       updateElement,
-      updateElements,
       deleteSelected,
       duplicateSelected,
       bringForward,
@@ -453,13 +721,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setBackground,
       setBackgroundImage,
       setDocName,
-      newDocument,
-      loadDocument,
-      saveProjectToDisk,
-      loadProjectFromFile,
-      saveAsTemplate,
-      deleteTemplate,
-      loadTemplate,
+      saveDocAsJson,
+      loadDocFromFile,
     ]
   );
 

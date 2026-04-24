@@ -10,16 +10,17 @@ interface Props {
 
 export default function SizeSelector({ open, onClose }: Props) {
   const { doc, setSize } = useStore();
+  const currentSize = doc?.size ?? STANDARD_SIZES[0];
+
   const [mode, setMode] = useState<"preset" | "custom">(
     STANDARD_SIZES.some(
-      (s) =>
-        s.widthIn === doc.size.widthIn && s.heightIn === doc.size.heightIn
+      (s) => s.widthIn === currentSize.widthIn && s.heightIn === currentSize.heightIn
     )
       ? "preset"
       : "custom"
   );
-  const [customW, setCustomW] = useState(doc.size.widthIn);
-  const [customH, setCustomH] = useState(doc.size.heightIn);
+  const [customW, setCustomW] = useState(currentSize.widthIn);
+  const [customH, setCustomH] = useState(currentSize.heightIn);
 
   const selectPreset = (s: LabelSize) => {
     setSize(s);
@@ -36,19 +37,19 @@ export default function SizeSelector({ open, onClose }: Props) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Tamanho do Label">
+    <Modal open={open} onClose={onClose} title="Label Size">
       <div className="flex gap-2 mb-4">
         <button
           className={mode === "preset" ? "btn-primary" : "btn-secondary"}
           onClick={() => setMode("preset")}
         >
-          Tamanhos padrão
+          Standard sizes
         </button>
         <button
           className={mode === "custom" ? "btn-primary" : "btn-secondary"}
           onClick={() => setMode("custom")}
         >
-          Tamanho customizado
+          Custom size
         </button>
       </div>
 
@@ -56,24 +57,22 @@ export default function SizeSelector({ open, onClose }: Props) {
         <div className="grid grid-cols-2 gap-3">
           {STANDARD_SIZES.map((s, i) => {
             const current =
-              s.widthIn === doc.size.widthIn &&
-              s.heightIn === doc.size.heightIn;
+              s.widthIn === currentSize.widthIn &&
+              s.heightIn === currentSize.heightIn;
             return (
               <button
                 key={i}
                 onClick={() => selectPreset(s)}
-                className={`card p-4 text-left hover:border-brand-400 ${
-                  current ? "ring-2 ring-brand-500" : ""
+                className={`card p-4 text-left hover:border-accent ${
+                  current ? "ring-2 ring-accent" : ""
                 }`}
               >
-                <div className="text-sm font-semibold text-brand-800">
-                  {s.name}
-                </div>
-                <div className="text-xs text-brand-500 mt-1">
+                <div className="text-sm font-semibold text-fg">{s.name}</div>
+                <div className="text-xs text-muted mt-1">
                   {inToPx(s.widthIn)}×{inToPx(s.heightIn)} px @ 300 DPI
                 </div>
                 <div
-                  className="mt-3 mx-auto border border-brand-300 bg-white"
+                  className="mt-3 mx-auto border border-border bg-white"
                   style={{
                     width: s.widthIn * 48,
                     height: s.heightIn * 48,
@@ -86,7 +85,7 @@ export default function SizeSelector({ open, onClose }: Props) {
       ) : (
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="field-label">Largura (polegadas)</label>
+            <label className="field-label">Width (inches)</label>
             <input
               type="number"
               step={0.125}
@@ -96,12 +95,10 @@ export default function SizeSelector({ open, onClose }: Props) {
               value={customW}
               onChange={(e) => setCustomW(parseFloat(e.target.value) || 0)}
             />
-            <div className="text-xs text-brand-500 mt-1">
-              = {inToPx(customW)} px
-            </div>
+            <div className="text-xs text-muted mt-1">= {inToPx(customW)} px</div>
           </div>
           <div>
-            <label className="field-label">Altura (polegadas)</label>
+            <label className="field-label">Height (inches)</label>
             <input
               type="number"
               step={0.125}
@@ -111,13 +108,11 @@ export default function SizeSelector({ open, onClose }: Props) {
               value={customH}
               onChange={(e) => setCustomH(parseFloat(e.target.value) || 0)}
             />
-            <div className="text-xs text-brand-500 mt-1">
-              = {inToPx(customH)} px
-            </div>
+            <div className="text-xs text-muted mt-1">= {inToPx(customH)} px</div>
           </div>
           <div className="col-span-2 flex justify-center py-4">
             <div
-              className="border border-brand-300 bg-white"
+              className="border border-border bg-white"
               style={{
                 width: Math.min(customW * 60, 360),
                 height: Math.min(customH * 60, 360),
@@ -126,10 +121,10 @@ export default function SizeSelector({ open, onClose }: Props) {
           </div>
           <div className="col-span-2 flex justify-end gap-2">
             <button className="btn-secondary" onClick={onClose}>
-              Cancelar
+              Cancel
             </button>
             <button className="btn-primary" onClick={applyCustom}>
-              Aplicar
+              Apply
             </button>
           </div>
         </div>

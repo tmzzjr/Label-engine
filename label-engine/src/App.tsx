@@ -9,30 +9,33 @@ import SizeSelector from "./components/SizeSelector";
 import CreateLabelModal from "./components/CreateLabelModal";
 import PreviewModal from "./components/PreviewModal";
 import ExportModal from "./components/ExportModal";
-import TemplatesModal from "./components/TemplatesModal";
+import TemplatesPage from "./components/TemplatesPage";
 import { renderRaster } from "./exporter";
 
-function Shell() {
+function Editor() {
   const {
+    doc,
     undo,
     redo,
     deleteSelected,
     duplicateSelected,
     selectedIds,
     updateElement,
-    doc,
+    currentTemplateId,
+    currentLabelId,
+    setLabelThumbnail,
   } = useStore();
 
   const [sizeOpen, setSizeOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
 
   const canvasRef = useRef<CanvasHandle | null>(null);
 
   const openPreview = useCallback(async () => {
+    if (!doc) return;
     setPreviewDataUrl(null);
     setPreviewOpen(true);
     try {
@@ -42,19 +45,14 @@ function Shell() {
         colorMode: "rgb",
       });
       setPreviewDataUrl(url);
+      // also save as thumbnail of the current label
+      if (currentTemplateId && currentLabelId) {
+        setLabelThumbnail(currentTemplateId, currentLabelId, url);
+      }
     } catch {
-      // keep fallback
       setPreviewDataUrl(canvasRef.current?.toDataURL(2) ?? null);
     }
-  }, [doc]);
-
-  const getThumbnail = useCallback(() => {
-    try {
-      return canvasRef.current?.toDataURL(1);
-    } catch {
-      return undefined;
-    }
-  }, []);
+  }, [doc, currentTemplateId, currentLabelId, setLabelThumbnail]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -62,16 +60,21 @@ function Shell() {
       const tag = (e.target as HTMLElement)?.tagName;
       const inField =
         tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-      // Shortcuts that should not fire in form fields
       if (!inField) {
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        if (
+          (e.metaKey || e.ctrlKey) &&
+          e.key.toLowerCase() === "z" &&
+          !e.shiftKey
+        ) {
           e.preventDefault();
           undo();
           return;
         }
         if (
           ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") ||
-          ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "z")
+          ((e.metaKey || e.ctrlKey) &&
+            e.shiftKey &&
+            e.key.toLowerCase() === "z")
         ) {
           e.preventDefault();
           redo();
@@ -100,7 +103,7 @@ function Shell() {
           const dy =
             e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
           selectedIds.forEach((id) => {
-            const el = doc.elements.find((x) => x.id === id);
+            const el = doc?.elements.find((x) => x.id === id);
             if (!el) return;
             updateElement(id, { x: el.x + dx, y: el.y + dy });
           });
@@ -116,7 +119,7 @@ function Shell() {
     duplicateSelected,
     selectedIds,
     updateElement,
-    doc.elements,
+    doc?.elements,
   ]);
 
   return (
@@ -125,8 +128,6 @@ function Shell() {
         onOpenSize={() => setSizeOpen(true)}
         onOpenCreate={() => setCreateOpen(true)}
         onOpenPreview={openPreview}
-        onOpenExport={() => setExportOpen(true)}
-        onOpenTemplates={() => setTemplatesOpen(true)}
       />
       <div className="flex-1 flex min-h-0">
         <ElementsPanel />
@@ -146,11 +147,6 @@ function Shell() {
         onConfirmExport={() => setExportOpen(true)}
       />
       <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
-      <TemplatesModal
-        open={templatesOpen}
-        onClose={() => setTemplatesOpen(false)}
-        getThumbnail={getThumbnail}
-      />
     </div>
   );
 }
@@ -164,10 +160,18 @@ function CanvasWithGrid({
   return <Canvas ref={canvasRef} showGrid={snapToGrid} />;
 }
 
+function Router() {
+  const { view, currentTemplate, currentLabel } = useStore();
+  if (view === "editor" && currentTemplate && currentLabel) {
+    return <Editor />;
+  }
+  return <TemplatesPage />;
+}
+
 export default function App() {
   return (
     <StoreProvider>
-      <Shell />
+      <Router />
     </StoreProvider>
   );
 }

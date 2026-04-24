@@ -5,21 +5,26 @@ import type { TextElement as TE } from "../../types";
 interface Props {
   el: TE;
   draggable: boolean;
+  hidden?: boolean;
   onSelect: () => void;
   onChange: (patch: Partial<TE>, commit?: boolean) => void;
+  onDoubleClick?: () => void;
   nodeRef?: React.Ref<any>;
 }
 
 export default function TextElementNode({
   el,
   draggable,
+  hidden,
   onSelect,
   onChange,
+  onDoubleClick,
   nodeRef,
 }: Props) {
-  const fontStyle = [el.italic ? "italic" : "", el.bold ? "bold" : ""]
-    .filter(Boolean)
-    .join(" ") || "normal";
+  const fontStyle =
+    [el.italic ? "italic" : "", el.bold ? "bold" : ""]
+      .filter(Boolean)
+      .join(" ") || "normal";
   return (
     <Text
       ref={nodeRef}
@@ -29,7 +34,8 @@ export default function TextElementNode({
       width={el.width}
       height={el.height}
       rotation={el.rotation}
-      opacity={el.opacity}
+      opacity={hidden ? 0 : el.opacity}
+      visible={!hidden}
       draggable={draggable}
       text={el.text}
       fontFamily={el.fontFamily}
@@ -43,12 +49,10 @@ export default function TextElementNode({
       wrap="word"
       onMouseDown={onSelect}
       onTap={onSelect}
-      onDragMove={(e) => {
-        onChange({ x: e.target.x(), y: e.target.y() }, false);
-      }}
-      onDragEnd={(e) => {
-        onChange({ x: e.target.x(), y: e.target.y() }, true);
-      }}
+      onDblClick={onDoubleClick}
+      onDblTap={onDoubleClick}
+      onDragMove={(e) => onChange({ x: e.target.x(), y: e.target.y() }, false)}
+      onDragEnd={(e) => onChange({ x: e.target.x(), y: e.target.y() }, true)}
       onTransform={(e) => {
         const node = e.target as any;
         const scaleX = node.scaleX();

@@ -37,21 +37,21 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className={`card w-full ${sizeCls} max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-brand-100">
-          <h3 className="text-base font-semibold text-brand-900">{title}</h3>
-          <button className="icon-btn" onClick={onClose} aria-label="Fechar">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+          <h3 className="text-base font-semibold text-fg">{title}</h3>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
         </div>
         <div className="p-5 overflow-y-auto">{children}</div>
         {footer && (
-          <div className="px-5 py-3 border-t border-brand-100 bg-brand-50/50 flex justify-end gap-2">
+          <div className="px-5 py-3 border-t border-border bg-surface2 flex justify-end gap-2">
             {footer}
           </div>
         )}

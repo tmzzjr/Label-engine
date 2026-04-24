@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Image as KImage } from "react-konva";
+import { Image as KImage, Rect, Text } from "react-konva";
 import QRCode from "qrcode";
 import type { QRCodeElement as QE } from "../../types";
 
@@ -19,10 +19,15 @@ export default function QRCodeElementNode({
   nodeRef,
 }: Props) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const empty = !el.value || !el.value.trim();
 
   useEffect(() => {
+    if (empty) {
+      setImg(null);
+      return;
+    }
     let cancelled = false;
-    QRCode.toDataURL(el.value || " ", {
+    QRCode.toDataURL(el.value, {
       errorCorrectionLevel: el.errorLevel,
       margin: 0,
       width: 512,
@@ -38,44 +43,72 @@ export default function QRCodeElementNode({
     return () => {
       cancelled = true;
     };
-  }, [el.value, el.errorLevel, el.fg, el.bg]);
+  }, [el.value, el.errorLevel, el.fg, el.bg, empty]);
 
   const side = Math.min(el.width, el.height);
 
-  return (
-    <KImage
-      ref={nodeRef}
-      id={el.id}
-      image={img as any}
-      x={el.x}
-      y={el.y}
-      width={side}
-      height={side}
-      rotation={el.rotation}
-      opacity={el.opacity}
-      draggable={draggable}
-      onMouseDown={onSelect}
-      onTap={onSelect}
-      onDragMove={(e) => onChange({ x: e.target.x(), y: e.target.y() }, false)}
-      onDragEnd={(e) => onChange({ x: e.target.x(), y: e.target.y() }, true)}
-      onTransform={(e) => {
-        const node = e.target as any;
-        const s = Math.max(node.scaleX(), node.scaleY());
-        const newSide = Math.max(16, side * s);
-        node.scaleX(1);
-        node.scaleY(1);
-        onChange(
-          {
-            x: node.x(),
-            y: node.y(),
-            width: newSide,
-            height: newSide,
-            rotation: node.rotation(),
-          },
-          false
-        );
-      }}
-      onTransformEnd={() => onChange({}, true)}
-    />
-  );
+  const shared = {
+    ref: nodeRef,
+    id: el.id,
+    x: el.x,
+    y: el.y,
+    width: side,
+    height: side,
+    rotation: el.rotation,
+    opacity: el.opacity,
+    draggable,
+    onMouseDown: onSelect,
+    onTap: onSelect,
+    onDragMove: (e: any) =>
+      onChange({ x: e.target.x(), y: e.target.y() }, false),
+    onDragEnd: (e: any) =>
+      onChange({ x: e.target.x(), y: e.target.y() }, true),
+    onTransform: (e: any) => {
+      const node = e.target;
+      const s = Math.max(node.scaleX(), node.scaleY());
+      const newSide = Math.max(16, side * s);
+      node.scaleX(1);
+      node.scaleY(1);
+      onChange(
+        {
+          x: node.x(),
+          y: node.y(),
+          width: newSide,
+          height: newSide,
+          rotation: node.rotation(),
+        },
+        false
+      );
+    },
+    onTransformEnd: () => onChange({}, true),
+  };
+
+  if (empty) {
+    // Red placeholder QR — signals missing link.
+    return (
+      <>
+        <Rect
+          {...shared}
+          fill="#fee2e2"
+          stroke="#ef4444"
+          strokeWidth={2}
+          cornerRadius={4}
+        />
+        <Text
+          text={"QR\nno link"}
+          x={el.x}
+          y={el.y + side / 2 - 14}
+          width={side}
+          align="center"
+          fontSize={Math.max(8, side * 0.15)}
+          fontStyle="bold"
+          fill="#b91c1c"
+          listening={false}
+          rotation={el.rotation}
+        />
+      </>
+    );
+  }
+
+  return <KImage {...shared} image={img as any} />;
 }

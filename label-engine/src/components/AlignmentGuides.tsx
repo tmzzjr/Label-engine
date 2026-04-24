@@ -12,13 +12,12 @@ interface Props {
   height: number;
 }
 
-// Red = canvas center line, Blue = element-to-element alignment.
+// Solid pink guides — both center and edge alignments.
 export default function AlignmentGuides({ guides, width, height }: Props) {
+  const stroke = "#ec4899"; // pink-500
   return (
     <>
       {guides.map((g, i) => {
-        const isCenter = g.kind === "center";
-        const stroke = isCenter ? "#ef4444" : "#2563eb";
         if (g.orientation === "V") {
           return (
             <Line
@@ -26,7 +25,6 @@ export default function AlignmentGuides({ guides, width, height }: Props) {
               points={[g.coord, 0, g.coord, height]}
               stroke={stroke}
               strokeWidth={1}
-              dash={[4, 4]}
               listening={false}
               perfectDrawEnabled={false}
             />
@@ -38,7 +36,6 @@ export default function AlignmentGuides({ guides, width, height }: Props) {
             points={[0, g.coord, width, g.coord]}
             stroke={stroke}
             strokeWidth={1}
-            dash={[4, 4]}
             listening={false}
             perfectDrawEnabled={false}
           />

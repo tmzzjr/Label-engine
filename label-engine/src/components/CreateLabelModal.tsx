@@ -15,6 +15,7 @@ const INITIAL: CreateLabelForm = {
   mfgDate: "",
   expDate: "",
   qrLink: "",
+  inventoryQrLink: "",
   notes: "",
 };
 
@@ -28,28 +29,37 @@ const formatDate = (iso: string) => {
 export default function CreateLabelModal({ open, onClose }: Props) {
   const { doc, setDoc } = useStore();
   const [form, setForm] = useState<CreateLabelForm>(INITIAL);
-  const [errors, setErrors] = useState<Partial<Record<keyof CreateLabelForm, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof CreateLabelForm, string>>
+  >({});
 
   const set = <K extends keyof CreateLabelForm>(k: K, v: CreateLabelForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
   const validate = () => {
     const e: typeof errors = {};
-    if (!form.productName.trim()) e.productName = "Obrigatório";
-    if (!form.lot.trim()) e.lot = "Obrigatório";
-    if (!form.mfgDate) e.mfgDate = "Obrigatório";
-    if (!form.expDate) e.expDate = "Obrigatório";
+    if (!form.productName.trim()) e.productName = "Required";
+    if (!form.lot.trim()) e.lot = "Required";
+    if (!form.mfgDate) e.mfgDate = "Required";
+    if (!form.expDate) e.expDate = "Required";
     if (
       form.mfgDate &&
       form.expDate &&
       new Date(form.mfgDate) > new Date(form.expDate)
     )
-      e.expDate = "Validade deve ser após fabricação";
+      e.expDate = "Expiration must be after manufacture date";
     if (form.qrLink) {
       try {
         new URL(form.qrLink);
       } catch {
-        e.qrLink = "URL inválida";
+        e.qrLink = "Invalid URL";
+      }
+    }
+    if (form.inventoryQrLink) {
+      try {
+        new URL(form.inventoryQrLink);
+      } catch {
+        e.inventoryQrLink = "Invalid URL";
       }
     }
     setErrors(e);
@@ -58,7 +68,7 @@ export default function CreateLabelModal({ open, onClose }: Props) {
 
   const apply = () => {
     if (!validate()) return;
-    // Map form values onto elements by their .field
+    if (!doc) return;
     setDoc((d) => {
       const elements = d.elements.map<LabelElement>((el) => {
         if (el.type === "text" && el.field) {
@@ -86,8 +96,13 @@ export default function CreateLabelModal({ open, onClose }: Props) {
           }
           return { ...t, text: value };
         }
-        if (el.type === "qrcode" && el.field === "qrLink" && form.qrLink) {
-          return { ...el, value: form.qrLink };
+        if (el.type === "qrcode") {
+          if (el.field === "qrLink" && form.qrLink) {
+            return { ...el, value: form.qrLink };
+          }
+          if (el.field === "inventoryQr" && form.inventoryQrLink) {
+            return { ...el, value: form.inventoryQrLink };
+          }
         }
         return el;
       });
@@ -96,33 +111,35 @@ export default function CreateLabelModal({ open, onClose }: Props) {
     onClose();
   };
 
-  const hasQRElement = doc.elements.some((e) => e.type === "qrcode");
+  const qrElements = doc?.elements.filter((e) => e.type === "qrcode") ?? [];
+  const hasQrLink = qrElements.some((e) => e.field === "qrLink");
+  const hasInvQr = qrElements.some((e) => e.field === "inventoryQr");
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Criar Label"
+      title="Create Label"
       size="lg"
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
-            Cancelar
+            Cancel
           </button>
           <button className="btn-primary" onClick={apply}>
-            Aplicar ao Label
+            Apply to Label
           </button>
         </>
       }
     >
-      <p className="text-sm text-brand-500 mb-4">
-        Preencha os campos abaixo — eles serão mapeados automaticamente para os
-        elementos do label com o campo correspondente configurado.
+      <p className="text-sm text-muted mb-4">
+        Fill in the fields below — they'll be automatically mapped to the
+        corresponding elements on your label.
       </p>
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <label className="field-label">
-            Nome do Produto <span className="text-rose-500">*</span>
+            Product Name <span className="text-danger">*</span>
           </label>
           <input
             className="input"
@@ -130,11 +147,11 @@ export default function CreateLabelModal({ open, onClose }: Props) {
             onChange={(e) => set("productName", e.target.value)}
           />
           {errors.productName && (
-            <p className="text-xs text-rose-600 mt-1">{errors.productName}</p>
+            <p className="text-xs text-danger mt-1">{errors.productName}</p>
           )}
         </div>
         <div>
-          <label className="field-label">SKU / Código</label>
+          <label className="field-label">SKU / Code</label>
           <input
             className="input"
             value={form.sku}
@@ -143,20 +160,18 @@ export default function CreateLabelModal({ open, onClose }: Props) {
         </div>
         <div>
           <label className="field-label">
-            Lote / LOT <span className="text-rose-500">*</span>
+            LOT Number <span className="text-danger">*</span>
           </label>
           <input
             className="input"
             value={form.lot}
             onChange={(e) => set("lot", e.target.value)}
           />
-          {errors.lot && (
-            <p className="text-xs text-rose-600 mt-1">{errors.lot}</p>
-          )}
+          {errors.lot && <p className="text-xs text-danger mt-1">{errors.lot}</p>}
         </div>
         <div>
           <label className="field-label">
-            Data de Fabricação <span className="text-rose-500">*</span>
+            Manufacture Date <span className="text-danger">*</span>
           </label>
           <input
             type="date"
@@ -165,12 +180,12 @@ export default function CreateLabelModal({ open, onClose }: Props) {
             onChange={(e) => set("mfgDate", e.target.value)}
           />
           {errors.mfgDate && (
-            <p className="text-xs text-rose-600 mt-1">{errors.mfgDate}</p>
+            <p className="text-xs text-danger mt-1">{errors.mfgDate}</p>
           )}
         </div>
         <div>
           <label className="field-label">
-            Data de Validade <span className="text-rose-500">*</span>
+            Expiration Date <span className="text-danger">*</span>
           </label>
           <input
             type="date"
@@ -179,11 +194,11 @@ export default function CreateLabelModal({ open, onClose }: Props) {
             onChange={(e) => set("expDate", e.target.value)}
           />
           {errors.expDate && (
-            <p className="text-xs text-rose-600 mt-1">{errors.expDate}</p>
+            <p className="text-xs text-danger mt-1">{errors.expDate}</p>
           )}
         </div>
         <div className="col-span-2">
-          <label className="field-label">Link para QR Code (opcional)</label>
+          <label className="field-label">QR Code Link (product)</label>
           <input
             className="input"
             placeholder="https://..."
@@ -191,17 +206,35 @@ export default function CreateLabelModal({ open, onClose }: Props) {
             onChange={(e) => set("qrLink", e.target.value)}
           />
           {errors.qrLink && (
-            <p className="text-xs text-rose-600 mt-1">{errors.qrLink}</p>
+            <p className="text-xs text-danger mt-1">{errors.qrLink}</p>
           )}
-          {!hasQRElement && form.qrLink && (
-            <p className="text-xs text-amber-600 mt-1">
-              ⚠ Adicione um elemento QR Code no label com o campo "Link QR"
-              para que este link seja aplicado.
+          {!hasQrLink && form.qrLink && (
+            <p className="text-xs text-warning mt-1">
+              ⚠ Add a QR Code element with field "QR Link (product)" for this
+              to apply.
             </p>
           )}
         </div>
         <div className="col-span-2">
-          <label className="field-label">Observações adicionais</label>
+          <label className="field-label">Inventory QR Code</label>
+          <input
+            className="input"
+            placeholder="https://inventory.example.com/..."
+            value={form.inventoryQrLink}
+            onChange={(e) => set("inventoryQrLink", e.target.value)}
+          />
+          {errors.inventoryQrLink && (
+            <p className="text-xs text-danger mt-1">{errors.inventoryQrLink}</p>
+          )}
+          {!hasInvQr && form.inventoryQrLink && (
+            <p className="text-xs text-warning mt-1">
+              ⚠ Add a QR Code element with field "Inventory QR" for this to
+              apply.
+            </p>
+          )}
+        </div>
+        <div className="col-span-2">
+          <label className="field-label">Additional Notes</label>
           <textarea
             className="input min-h-[70px]"
             value={form.notes}

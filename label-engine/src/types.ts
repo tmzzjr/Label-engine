@@ -1,4 +1,4 @@
-// Core domain types for the Label Engine editor.
+// Core domain types.
 
 export type ElementType =
   | "text"
@@ -11,27 +11,29 @@ export type ElementType =
 export type TextAlign = "left" | "center" | "right";
 export type QRErrorLevel = "L" | "M" | "Q" | "H";
 
+export type FieldKey =
+  | "productName"
+  | "sku"
+  | "lot"
+  | "mfgDate"
+  | "expDate"
+  | "qrLink"
+  | "inventoryQr"
+  | "notes"
+  | null;
+
 export interface BaseElement {
   id: string;
   type: ElementType;
-  x: number; // top-left in px (canvas coords)
+  x: number;
   y: number;
   width: number;
   height: number;
-  rotation: number; // degrees
-  opacity: number; // 0..1
+  rotation: number;
+  opacity: number;
   locked?: boolean;
   visible?: boolean;
-  // Semantic field key used by CreateLabelModal to auto-fill values.
-  field?:
-    | "productName"
-    | "sku"
-    | "lot"
-    | "mfgDate"
-    | "expDate"
-    | "qrLink"
-    | "notes"
-    | null;
+  field?: FieldKey;
 }
 
 export interface TextElement extends BaseElement {
@@ -49,7 +51,7 @@ export interface TextElement extends BaseElement {
 
 export interface ImageElement extends BaseElement {
   type: "image";
-  src: string; // dataURL
+  src: string;
   keepAspect: boolean;
   naturalWidth?: number;
   naturalHeight?: number;
@@ -103,14 +105,24 @@ export interface LabelDocument {
   name: string;
   size: LabelSize;
   background: string;
-  backgroundImage?: string; // dataURL (template image)
+  backgroundImage?: string;
   elements: LabelElement[];
 }
 
-export interface SavedTemplate {
+export interface SavedLabel {
   id: string;
   name: string;
   doc: LabelDocument;
+  createdAt: number;
+  updatedAt: number;
+  thumbnail?: string;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  description?: string;
+  labels: SavedLabel[];
   createdAt: number;
   thumbnail?: string;
 }
@@ -122,6 +134,7 @@ export interface CreateLabelForm {
   mfgDate: string;
   expDate: string;
   qrLink: string;
+  inventoryQrLink: string;
   notes: string;
 }
 

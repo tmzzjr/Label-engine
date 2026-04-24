@@ -55,7 +55,7 @@ function NumberField({
     <div>
       <label className="field-label">
         {label}
-        {suffix && <span className="ml-1 text-brand-400">({suffix})</span>}
+        {suffix && <span className="ml-1 text-subtle">({suffix})</span>}
       </label>
       <input
         type="number"
@@ -87,7 +87,7 @@ function ColorField({
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-12 rounded border border-brand-200 bg-white p-0.5"
+          className="h-9 w-12 rounded border border-border bg-surface p-0.5"
         />
         <input
           className="input flex-1"
@@ -102,50 +102,48 @@ function ColorField({
 function CommonBox({ el }: { el: LabelElement }) {
   const { updateElement } = useStore();
   return (
-    <>
-      <div className="grid grid-cols-2 gap-2">
-        <NumberField
-          label="X"
-          value={el.x}
-          onChange={(n) => updateElement(el.id, { x: n })}
+    <div className="grid grid-cols-2 gap-2">
+      <NumberField
+        label="X"
+        value={el.x}
+        onChange={(n) => updateElement(el.id, { x: n })}
+      />
+      <NumberField
+        label="Y"
+        value={el.y}
+        onChange={(n) => updateElement(el.id, { y: n })}
+      />
+      <NumberField
+        label="W"
+        value={el.width}
+        onChange={(n) => updateElement(el.id, { width: Math.max(4, n) })}
+      />
+      <NumberField
+        label="H"
+        value={el.height}
+        onChange={(n) => updateElement(el.id, { height: Math.max(4, n) })}
+      />
+      <NumberField
+        label="Rotation"
+        value={el.rotation}
+        onChange={(n) => updateElement(el.id, { rotation: n })}
+        suffix="°"
+      />
+      <div>
+        <label className="field-label">Opacity</label>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={el.opacity}
+          onChange={(e) =>
+            updateElement(el.id, { opacity: parseFloat(e.target.value) })
+          }
+          className="w-full"
         />
-        <NumberField
-          label="Y"
-          value={el.y}
-          onChange={(n) => updateElement(el.id, { y: n })}
-        />
-        <NumberField
-          label="W"
-          value={el.width}
-          onChange={(n) => updateElement(el.id, { width: Math.max(4, n) })}
-        />
-        <NumberField
-          label="H"
-          value={el.height}
-          onChange={(n) => updateElement(el.id, { height: Math.max(4, n) })}
-        />
-        <NumberField
-          label="Rotação"
-          value={el.rotation}
-          onChange={(n) => updateElement(el.id, { rotation: n })}
-          suffix="°"
-        />
-        <div>
-          <label className="field-label">Opacidade</label>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={el.opacity}
-            onChange={(e) =>
-              updateElement(el.id, { opacity: parseFloat(e.target.value) })
-            }
-            className="w-full"
-          />
-        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -157,7 +155,7 @@ function TextEditor({ el }: { el: TextElement }) {
   return (
     <>
       <div>
-        <label className="field-label">Texto</label>
+        <label className="field-label">Text</label>
         <textarea
           className="input min-h-[60px]"
           value={el.text}
@@ -165,7 +163,7 @@ function TextEditor({ el }: { el: TextElement }) {
         />
       </div>
       <div>
-        <label className="field-label">Fonte</label>
+        <label className="field-label">Font</label>
         <select
           className="input"
           value={el.fontFamily}
@@ -179,7 +177,7 @@ function TextEditor({ el }: { el: TextElement }) {
         </select>
       </div>
       <div>
-        <label className="field-label">Tamanho: {el.fontSize}px</label>
+        <label className="field-label">Size: {el.fontSize}px</label>
         <div className="flex items-center gap-2">
           <input
             type="range"
@@ -202,7 +200,7 @@ function TextEditor({ el }: { el: TextElement }) {
         </div>
       </div>
       <ColorField
-        label="Cor"
+        label="Color"
         value={el.fill}
         onChange={(c) => updateElement(el.id, { fill: c })}
       />
@@ -228,7 +226,7 @@ function TextEditor({ el }: { el: TextElement }) {
         >
           <Underline size={16} />
         </button>
-        <div className="w-px bg-brand-200 mx-1" />
+        <div className="w-px bg-border mx-1" />
         <button
           className={`icon-btn ${el.align === "left" ? "icon-btn-active" : ""}`}
           onClick={() => updateElement(el.id, { align: "left" })}
@@ -249,7 +247,9 @@ function TextEditor({ el }: { el: TextElement }) {
         </button>
       </div>
       <div>
-        <label className="field-label">Entrelinha: {el.lineHeight.toFixed(2)}</label>
+        <label className="field-label">
+          Line height: {el.lineHeight.toFixed(2)}
+        </label>
         <input
           type="range"
           min={0.8}
@@ -271,20 +271,22 @@ function ImageEditor({ el }: { el: ImageElement }) {
   const { updateElement } = useStore();
   return (
     <>
-      <div className="card p-2 flex justify-center">
+      <div className="card p-2 flex justify-center bg-white">
         <img
           src={el.src}
           alt=""
           className="max-h-24 max-w-full object-contain"
         />
       </div>
-      <label className="flex items-center gap-2 text-sm text-brand-700">
+      <label className="flex items-center gap-2 text-sm text-fg">
         <input
           type="checkbox"
           checked={el.keepAspect}
-          onChange={(e) => updateElement(el.id, { keepAspect: e.target.checked })}
+          onChange={(e) =>
+            updateElement(el.id, { keepAspect: e.target.checked })
+          }
         />
-        Manter proporção
+        Keep aspect ratio
       </label>
     </>
   );
@@ -295,15 +297,22 @@ function QRCodeEditor({ el }: { el: QRCodeElement }) {
   return (
     <>
       <div>
-        <label className="field-label">URL / Texto</label>
+        <label className="field-label">URL / Text</label>
         <textarea
           className="input min-h-[60px]"
           value={el.value}
           onChange={(e) => updateElement(el.id, { value: e.target.value })}
+          placeholder="https://..."
         />
+        {!el.value && (
+          <p className="text-xs text-danger mt-1">
+            ⚠ QR code has no content and will display in red until a link is
+            added.
+          </p>
+        )}
       </div>
       <div>
-        <label className="field-label">Correção de erro</label>
+        <label className="field-label">Error correction</label>
         <select
           className="input"
           value={el.errorLevel}
@@ -311,19 +320,19 @@ function QRCodeEditor({ el }: { el: QRCodeElement }) {
             updateElement(el.id, { errorLevel: e.target.value as any })
           }
         >
-          <option value="L">L — Baixa (7%)</option>
-          <option value="M">M — Média (15%)</option>
-          <option value="Q">Q — Alta (25%)</option>
-          <option value="H">H — Máxima (30%)</option>
+          <option value="L">L — Low (7%)</option>
+          <option value="M">M — Medium (15%)</option>
+          <option value="Q">Q — High (25%)</option>
+          <option value="H">H — Maximum (30%)</option>
         </select>
       </div>
       <ColorField
-        label="Cor do QR"
+        label="QR color"
         value={el.fg}
         onChange={(c) => updateElement(el.id, { fg: c })}
       />
       <ColorField
-        label="Fundo do QR"
+        label="QR background"
         value={el.bg}
         onChange={(c) => updateElement(el.id, { bg: c })}
       />
@@ -337,22 +346,22 @@ function RectEditor({ el }: { el: RectElement }) {
   return (
     <>
       <ColorField
-        label="Preenchimento"
+        label="Fill"
         value={el.fill}
         onChange={(c) => updateElement(el.id, { fill: c })}
       />
       <ColorField
-        label="Borda"
+        label="Stroke"
         value={el.stroke}
         onChange={(c) => updateElement(el.id, { stroke: c })}
       />
       <NumberField
-        label="Espessura"
+        label="Stroke width"
         value={el.strokeWidth}
         onChange={(n) => updateElement(el.id, { strokeWidth: Math.max(0, n) })}
       />
       <NumberField
-        label="Raio dos cantos"
+        label="Corner radius"
         value={el.cornerRadius}
         onChange={(n) => updateElement(el.id, { cornerRadius: Math.max(0, n) })}
       />
@@ -365,17 +374,17 @@ function CircleEditor({ el }: { el: CircleElement }) {
   return (
     <>
       <ColorField
-        label="Preenchimento"
+        label="Fill"
         value={el.fill}
         onChange={(c) => updateElement(el.id, { fill: c })}
       />
       <ColorField
-        label="Borda"
+        label="Stroke"
         value={el.stroke}
         onChange={(c) => updateElement(el.id, { stroke: c })}
       />
       <NumberField
-        label="Espessura"
+        label="Stroke width"
         value={el.strokeWidth}
         onChange={(n) => updateElement(el.id, { strokeWidth: Math.max(0, n) })}
       />
@@ -388,12 +397,12 @@ function LineEditor({ el }: { el: LineElement }) {
   return (
     <>
       <ColorField
-        label="Cor"
+        label="Color"
         value={el.stroke}
         onChange={(c) => updateElement(el.id, { stroke: c })}
       />
       <NumberField
-        label="Espessura"
+        label="Width"
         value={el.strokeWidth}
         onChange={(n) => updateElement(el.id, { strokeWidth: Math.max(1, n) })}
       />
@@ -406,7 +415,7 @@ function FieldMapping({ el }: { el: LabelElement }) {
   if (el.type !== "text" && el.type !== "qrcode") return null;
   return (
     <div>
-      <label className="field-label">Campo auto-preenchido</label>
+      <label className="field-label">Auto-fill field</label>
       <select
         className="input"
         value={el.field || ""}
@@ -414,14 +423,23 @@ function FieldMapping({ el }: { el: LabelElement }) {
           updateElement(el.id, { field: (e.target.value || null) as any })
         }
       >
-        <option value="">(nenhum)</option>
-        <option value="productName">Nome do produto</option>
-        <option value="sku">SKU</option>
-        <option value="lot">Lote / LOT</option>
-        <option value="mfgDate">Data de fabricação</option>
-        <option value="expDate">Data de validade</option>
-        {el.type === "qrcode" && <option value="qrLink">Link QR</option>}
-        <option value="notes">Observações</option>
+        <option value="">(none)</option>
+        {el.type === "text" && (
+          <>
+            <option value="productName">Product name</option>
+            <option value="sku">SKU</option>
+            <option value="lot">LOT number</option>
+            <option value="mfgDate">Manufacture date</option>
+            <option value="expDate">Expiration date</option>
+            <option value="notes">Notes</option>
+          </>
+        )}
+        {el.type === "qrcode" && (
+          <>
+            <option value="qrLink">QR Link (product)</option>
+            <option value="inventoryQr">Inventory QR</option>
+          </>
+        )}
       </select>
     </div>
   );
@@ -445,12 +463,14 @@ function iconFor(type: LabelElement["type"]) {
 }
 
 function elementLabel(el: LabelElement) {
-  if (el.type === "text") return (el as TextElement).text.slice(0, 22) || "Texto";
-  if (el.type === "qrcode") return (el as QRCodeElement).value.slice(0, 22) || "QR";
-  if (el.type === "image") return "Imagem";
-  if (el.type === "rect") return "Retângulo";
-  if (el.type === "circle") return "Círculo";
-  return "Linha";
+  if (el.type === "text")
+    return (el as TextElement).text.slice(0, 22) || "Text";
+  if (el.type === "qrcode")
+    return (el as QRCodeElement).value.slice(0, 22) || "QR (empty)";
+  if (el.type === "image") return "Image";
+  if (el.type === "rect") return "Rectangle";
+  if (el.type === "circle") return "Circle";
+  return "Line";
 }
 
 export default function PropertiesPanel() {
@@ -467,36 +487,36 @@ export default function PropertiesPanel() {
     updateElement,
   } = useStore();
 
+  if (!doc) return null;
   const first = doc.elements.find((e) => selectedIds.includes(e.id));
 
   return (
-    <aside className="w-80 flex-shrink-0 border-l border-brand-200 bg-white overflow-y-auto">
-      {/* Top: selected element editor */}
-      <div className="p-4 border-b border-brand-100">
+    <aside className="w-80 flex-shrink-0 border-l border-border bg-surface overflow-y-auto">
+      <div className="p-4 border-b border-border">
         {!first ? (
-          <div className="text-sm text-brand-500 text-center py-6">
-            Nenhum elemento selecionado.
+          <div className="text-sm text-muted text-center py-6">
+            No element selected.
             <br />
-            Clique em um elemento no canvas para editar.
+            Click an element on the canvas to edit.
           </div>
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-brand-800 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-fg flex items-center gap-2">
                 {iconFor(first.type)}
-                Propriedades
+                Properties
               </h3>
               <div className="flex gap-1">
                 <button
                   className="icon-btn"
-                  title="Duplicar (Ctrl+D)"
+                  title="Duplicate (Ctrl+D)"
                   onClick={duplicateSelected}
                 >
                   <Copy size={16} />
                 </button>
                 <button
                   className="icon-btn"
-                  title={first.locked ? "Destravar" : "Travar"}
+                  title={first.locked ? "Unlock" : "Lock"}
                   onClick={() =>
                     updateElement(first.id, { locked: !first.locked })
                   }
@@ -504,8 +524,8 @@ export default function PropertiesPanel() {
                   {first.locked ? <Unlock size={16} /> : <Lock size={16} />}
                 </button>
                 <button
-                  className="icon-btn text-rose-600"
-                  title="Excluir (Delete)"
+                  className="icon-btn hover:text-danger"
+                  title="Delete (Delete)"
                   onClick={deleteSelected}
                 >
                   <Trash2 size={16} />
@@ -517,9 +537,9 @@ export default function PropertiesPanel() {
               <button
                 className="btn-secondary flex-1 text-xs py-1.5"
                 onClick={bringToFront}
-                title="Trazer para frente"
+                title="Bring to front"
               >
-                <ArrowUpToLine size={14} /> Frente
+                <ArrowUpToLine size={14} /> Front
               </button>
               <button
                 className="btn-secondary flex-1 text-xs py-1.5"
@@ -536,28 +556,33 @@ export default function PropertiesPanel() {
               <button
                 className="btn-secondary flex-1 text-xs py-1.5"
                 onClick={sendToBack}
-                title="Enviar para trás"
+                title="Send to back"
               >
-                <ArrowDownToLine size={14} /> Fundo
+                <ArrowDownToLine size={14} /> Back
               </button>
             </div>
 
             <CommonBox el={first} />
 
             {first.type === "text" && <TextEditor el={first as TextElement} />}
-            {first.type === "image" && <ImageEditor el={first as ImageElement} />}
-            {first.type === "qrcode" && <QRCodeEditor el={first as QRCodeElement} />}
+            {first.type === "image" && (
+              <ImageEditor el={first as ImageElement} />
+            )}
+            {first.type === "qrcode" && (
+              <QRCodeEditor el={first as QRCodeElement} />
+            )}
             {first.type === "rect" && <RectEditor el={first as RectElement} />}
-            {first.type === "circle" && <CircleEditor el={first as CircleElement} />}
+            {first.type === "circle" && (
+              <CircleEditor el={first as CircleElement} />
+            )}
             {first.type === "line" && <LineEditor el={first as LineElement} />}
           </div>
         )}
       </div>
 
-      {/* Layers */}
       <div className="p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-brand-500 mb-2">
-          Camadas
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+          Layers
         </h3>
         <ul className="space-y-1">
           {[...doc.elements].reverse().map((el) => {
@@ -567,8 +592,8 @@ export default function PropertiesPanel() {
                 <button
                   className={`w-full flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
                     isSel
-                      ? "bg-brand-100 text-brand-900"
-                      : "hover:bg-brand-50 text-brand-700"
+                      ? "bg-accent-soft text-accent"
+                      : "hover:bg-surface2 text-fg"
                   }`}
                   onClick={() => setSelection([el.id])}
                 >
@@ -581,16 +606,18 @@ export default function PropertiesPanel() {
                       updateElement(el.id, { visible: el.visible === false });
                     }}
                   >
-                    {el.visible === false ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {el.visible === false ? (
+                      <EyeOff size={14} />
+                    ) : (
+                      <Eye size={14} />
+                    )}
                   </span>
                 </button>
               </li>
             );
           })}
           {doc.elements.length === 0 && (
-            <li className="text-xs text-brand-400 text-center py-3">
-              Nenhuma camada
-            </li>
+            <li className="text-xs text-muted text-center py-3">No layers</li>
           )}
         </ul>
       </div>

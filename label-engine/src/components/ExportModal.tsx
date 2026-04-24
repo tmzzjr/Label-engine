@@ -27,7 +27,7 @@ export default function ExportModal({ open, onClose }: Props) {
   const [perPage, setPerPage] = useState(1);
   const [pageSize, setPageSize] = useState("Letter");
   const [pageMargin, setPageMargin] = useState(0.25);
-  const [filename, setFilename] = useState(doc.name || "label");
+  const [filename, setFilename] = useState(doc?.name || "label");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -35,6 +35,7 @@ export default function ExportModal({ open, onClose }: Props) {
   const isPdf = format === "pdf";
 
   const handleExport = async () => {
+    if (!doc) return;
     setBusy(true);
     setErr(null);
     try {
@@ -52,7 +53,7 @@ export default function ExportModal({ open, onClose }: Props) {
       });
       onClose();
     } catch (e: any) {
-      setErr(e?.message || "Falha ao exportar.");
+      setErr(e?.message || "Export failed.");
     } finally {
       setBusy(false);
     }
@@ -62,27 +63,23 @@ export default function ExportModal({ open, onClose }: Props) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Exportar"
+      title="Export"
       size="lg"
       footer={
         <>
           <button className="btn-secondary" onClick={onClose} disabled={busy}>
-            Cancelar
+            Cancel
           </button>
-          <button
-            className="btn-primary"
-            onClick={handleExport}
-            disabled={busy}
-          >
+          <button className="btn-primary" onClick={handleExport} disabled={busy}>
             {busy && <Loader2 className="animate-spin" size={16} />}
-            Exportar
+            Export
           </button>
         </>
       }
     >
       <div className="space-y-5">
         <div>
-          <label className="field-label">Formato</label>
+          <label className="field-label">Format</label>
           <div className="grid grid-cols-4 gap-2">
             {(["pdf", "png", "jpg", "svg"] as const).map((f) => (
               <button
@@ -98,40 +95,37 @@ export default function ExportModal({ open, onClose }: Props) {
               </button>
             ))}
           </div>
-          <p className="text-xs text-brand-500 mt-1">
+          <p className="text-xs text-muted mt-1">
             {format === "pdf" &&
-              "PDF para impressão profissional — permite múltiplos labels por página."}
-            {format === "png" && "PNG rasterizado com canal alpha em alta resolução."}
-            {format === "jpg" && "JPG rasterizado com compressão ajustável."}
-            {format === "svg" && "SVG vetorial (editável em Illustrator/Inkscape)."}
+              "PDF for professional printing — supports multiple labels per page."}
+            {format === "png" && "High-resolution raster with alpha channel."}
+            {format === "jpg" && "Raster with adjustable compression."}
+            {format === "svg" &&
+              "Vector SVG (editable in Illustrator/Inkscape)."}
           </p>
         </div>
 
         <div>
-          <label className="field-label">Modo de cor</label>
+          <label className="field-label">Color mode</label>
           <div className="flex gap-2">
             <button
-              className={
-                colorMode === "rgb" ? "btn-primary" : "btn-secondary"
-              }
+              className={colorMode === "rgb" ? "btn-primary" : "btn-secondary"}
               onClick={() => setColorMode("rgb")}
             >
-              RGB (tela)
+              RGB (screen)
             </button>
             <button
-              className={
-                colorMode === "cmyk" ? "btn-primary" : "btn-secondary"
-              }
+              className={colorMode === "cmyk" ? "btn-primary" : "btn-secondary"}
               onClick={() => setColorMode("cmyk")}
             >
-              CMYK (impressão)
+              CMYK (print)
             </button>
           </div>
           {colorMode === "cmyk" && (
-            <p className="text-xs text-amber-600 mt-1">
-              ⚠ CMYK é aproximado via conversão matemática (sem perfil ICC).
-              Para gráfica profissional, converta no Illustrator com perfil
-              adequado.
+            <p className="text-xs text-warning mt-1">
+              ⚠ CMYK is approximated mathematically (no ICC profile). For
+              professional offset printing, convert in Illustrator with a
+              proper profile.
             </p>
           )}
         </div>
@@ -139,22 +133,22 @@ export default function ExportModal({ open, onClose }: Props) {
         {(isRaster || isPdf) && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="field-label">DPI (resolução)</label>
+              <label className="field-label">Resolution (DPI)</label>
               <select
                 className="input"
                 value={dpi}
                 onChange={(e) => setDpi(parseInt(e.target.value))}
               >
                 <option value={150}>150 DPI — draft</option>
-                <option value={300}>300 DPI — impressão padrão</option>
-                <option value={600}>600 DPI — alta qualidade</option>
-                <option value={1200}>1200 DPI — máxima</option>
+                <option value={300}>300 DPI — standard print</option>
+                <option value={600}>600 DPI — high quality</option>
+                <option value={1200}>1200 DPI — maximum</option>
               </select>
             </div>
             {format === "jpg" && (
               <div>
                 <label className="field-label">
-                  Qualidade JPG: {Math.round(jpgQuality * 100)}%
+                  JPG quality: {Math.round(jpgQuality * 100)}%
                 </label>
                 <input
                   type="range"
@@ -173,7 +167,7 @@ export default function ExportModal({ open, onClose }: Props) {
         {isPdf && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="field-label">Tamanho da página</label>
+              <label className="field-label">Page size</label>
               <select
                 className="input"
                 value={pageSize}
@@ -187,7 +181,7 @@ export default function ExportModal({ open, onClose }: Props) {
               </select>
             </div>
             <div>
-              <label className="field-label">Margem (pol)</label>
+              <label className="field-label">Margin (in)</label>
               <input
                 type="number"
                 step={0.05}
@@ -198,7 +192,7 @@ export default function ExportModal({ open, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="field-label">Labels por página</label>
+              <label className="field-label">Labels per page</label>
               <select
                 className="input"
                 value={perPage}
@@ -218,14 +212,14 @@ export default function ExportModal({ open, onClose }: Props) {
                   checked={cropMarks}
                   onChange={(e) => setCropMarks(e.target.checked)}
                 />
-                Marcas de corte
+                Crop marks
               </label>
             </div>
           </div>
         )}
 
         <div>
-          <label className="field-label">Nome do arquivo</label>
+          <label className="field-label">File name</label>
           <input
             className="input"
             value={filename}
@@ -234,7 +228,7 @@ export default function ExportModal({ open, onClose }: Props) {
         </div>
 
         {err && (
-          <div className="rounded-md bg-rose-50 border border-rose-200 p-3 text-sm text-rose-700">
+          <div className="rounded-md bg-danger/10 border border-danger/40 p-3 text-sm text-danger">
             {err}
           </div>
         )}

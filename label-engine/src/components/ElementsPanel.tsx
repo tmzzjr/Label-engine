@@ -25,6 +25,7 @@ export default function ElementsPanel() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const bgFileRef = useRef<HTMLInputElement | null>(null);
 
+  if (!doc) return null;
   const w = inToPx(doc.size.widthIn);
   const h = inToPx(doc.size.heightIn);
 
@@ -46,7 +47,7 @@ export default function ElementsPanel() {
       height: ch,
       rotation: 0,
       opacity: 1,
-      text: "Novo texto",
+      text: "New text",
       fontFamily: "Inter",
       fontSize: 16,
       fill: "#111827",
@@ -71,7 +72,7 @@ export default function ElementsPanel() {
       height: side,
       rotation: 0,
       opacity: 1,
-      value: "https://example.com",
+      value: "",
       errorLevel: "M",
       fg: "#000000",
       bg: "#ffffff",
@@ -180,36 +181,33 @@ export default function ElementsPanel() {
   };
 
   const tile =
-    "flex flex-col items-center justify-center gap-1 rounded-lg border border-brand-200 bg-white p-3 text-xs font-medium text-brand-700 hover:border-brand-400 hover:bg-brand-50 transition";
+    "flex flex-col items-center justify-center gap-1 rounded-lg border border-border bg-surface2 p-3 text-xs font-medium text-fg hover:border-accent hover:bg-surface transition";
 
   return (
-    <aside className="w-64 flex-shrink-0 border-r border-brand-200 bg-white overflow-y-auto">
+    <aside className="w-64 flex-shrink-0 border-r border-border bg-surface overflow-y-auto">
       <div className="p-4 space-y-6">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-brand-500 mb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
             Add-ons
           </h3>
           <div className="grid grid-cols-2 gap-2">
             <button className={tile} onClick={addText}>
-              <Type size={20} /> Texto
+              <Type size={20} /> Text
             </button>
-            <button
-              className={tile}
-              onClick={() => fileRef.current?.click()}
-            >
+            <button className={tile} onClick={() => fileRef.current?.click()}>
               <ImgIcon size={20} /> Logo
             </button>
             <button className={tile} onClick={addQR}>
               <QrCode size={20} /> QR Code
             </button>
             <button className={tile} onClick={addRect}>
-              <Square size={20} /> Retângulo
+              <Square size={20} /> Rectangle
             </button>
             <button className={tile} onClick={addCircle}>
-              <Circle size={20} /> Círculo
+              <Circle size={20} /> Circle
             </button>
             <button className={tile} onClick={addLine}>
-              <Minus size={20} /> Linha
+              <Minus size={20} /> Line
             </button>
           </div>
           <input
@@ -226,22 +224,22 @@ export default function ElementsPanel() {
         </div>
 
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-brand-500 mb-3">
-            Fundo do Template
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
+            Template Background
           </h3>
           <button
             className="w-full btn-secondary"
             onClick={() => bgFileRef.current?.click()}
           >
             <Upload size={16} />
-            Carregar imagem
+            Upload image
           </button>
           {doc.backgroundImage && (
             <button
               className="w-full btn-ghost mt-2 text-xs"
               onClick={() => setBackgroundImage(undefined)}
             >
-              Remover fundo
+              Remove background
             </button>
           )}
           <input
