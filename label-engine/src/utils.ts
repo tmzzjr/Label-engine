@@ -1,4 +1,4 @@
-import type { LabelDocument, LabelElement, TextElement } from "./types";
+import type { LabelDocument, TextElement } from "./types";
 import { inToPx } from "./types";
 
 export const uid = () =>
@@ -8,7 +8,7 @@ export function emptyDocument(name = "Untitled Label"): LabelDocument {
   return {
     id: uid(),
     name,
-    size: { widthIn: 0.75, heightIn: 1.75, name: '0.75" × 1.75"' },
+    size: { widthIn: 1.75, heightIn: 0.75, name: '1.75" × 0.75"' },
     background: "#ffffff",
     elements: [],
   };
@@ -16,21 +16,22 @@ export function emptyDocument(name = "Untitled Label"): LabelDocument {
 
 export function starterDocument(name = "Untitled Label"): LabelDocument {
   const doc = emptyDocument(name);
-  const w = inToPx(doc.size.widthIn);
-  const h = inToPx(doc.size.heightIn);
+  const w = inToPx(doc.size.widthIn); // 525
+  const h = inToPx(doc.size.heightIn); // 225
+  const half = Math.floor((w - 24) / 2);
   doc.elements = [
     {
       id: uid(),
       type: "text",
       x: 12,
-      y: 14,
+      y: 12,
       width: w - 24,
-      height: 38,
+      height: 32,
       rotation: 0,
       opacity: 1,
       text: "PRODUCT NAME",
       fontFamily: "Inter",
-      fontSize: 22,
+      fontSize: 20,
       fill: "#111827",
       bold: true,
       italic: false,
@@ -44,13 +45,13 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
       type: "text",
       x: 12,
       y: 60,
-      width: w - 24,
+      width: half,
       height: 20,
       rotation: 0,
       opacity: 1,
       text: "SKU: ——",
       fontFamily: "Inter",
-      fontSize: 12,
+      fontSize: 11,
       fill: "#374151",
       bold: false,
       italic: false,
@@ -62,15 +63,15 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
     {
       id: uid(),
       type: "text",
-      x: 12,
-      y: 84,
-      width: w - 24,
+      x: 12 + half,
+      y: 60,
+      width: half,
       height: 20,
       rotation: 0,
       opacity: 1,
       text: "LOT: ——",
       fontFamily: "Inter",
-      fontSize: 12,
+      fontSize: 11,
       fill: "#374151",
       bold: false,
       italic: false,
@@ -83,8 +84,8 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
       id: uid(),
       type: "text",
       x: 12,
-      y: h - 60,
-      width: w - 24,
+      y: h - 40,
+      width: half,
       height: 18,
       rotation: 0,
       opacity: 1,
@@ -102,9 +103,9 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
     {
       id: uid(),
       type: "text",
-      x: 12,
+      x: 12 + half,
       y: h - 40,
-      width: w - 24,
+      width: half,
       height: 18,
       rotation: 0,
       opacity: 1,
@@ -152,6 +153,3 @@ export const COMMON_FONTS = [
   "Comic Sans MS",
   "system-ui",
 ];
-
-// ignore unused in some compilations
-void ({} as LabelElement);

@@ -21,6 +21,8 @@ import {
   Square,
   Circle,
   Minus,
+  Plus,
+  Tag,
 } from "lucide-react";
 import { useStore } from "../store";
 import type {
@@ -485,6 +487,12 @@ export default function PropertiesPanel() {
     bringToFront,
     sendToBack,
     updateElement,
+    currentTemplate,
+    currentLabelId,
+    currentTemplateId,
+    openLabel,
+    duplicateLabel,
+    createLabelInTemplate,
   } = useStore();
 
   if (!doc) return null;
@@ -580,6 +588,61 @@ export default function PropertiesPanel() {
         )}
       </div>
 
+      {/* Labels in the current template */}
+      {currentTemplate && currentTemplateId && (
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Labels in Template
+            </h3>
+            <button
+              className="icon-btn"
+              title="New label in this template"
+              onClick={() => createLabelInTemplate(currentTemplateId)}
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+          <ul className="space-y-1">
+            {currentTemplate.labels.map((l) => {
+              const isCurrent = l.id === currentLabelId;
+              return (
+                <li
+                  key={l.id}
+                  className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm transition ${
+                    isCurrent
+                      ? "bg-accent-soft text-accent"
+                      : "hover:bg-surface2 text-fg"
+                  }`}
+                >
+                  <button
+                    className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                    onClick={() => {
+                      if (!isCurrent) openLabel(currentTemplateId, l.id);
+                    }}
+                    title={isCurrent ? "Current label" : "Switch to this label"}
+                  >
+                    <Tag size={13} className="flex-shrink-0" />
+                    <span className="truncate">{l.name}</span>
+                  </button>
+                  <button
+                    className="icon-btn w-6 h-6"
+                    title="Duplicate label"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      duplicateLabel(currentTemplateId, l.id);
+                    }}
+                  >
+                    <Copy size={12} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* Layers */}
       <div className="p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
           Layers
@@ -587,31 +650,32 @@ export default function PropertiesPanel() {
         <ul className="space-y-1">
           {[...doc.elements].reverse().map((el) => {
             const isSel = selectedIds.includes(el.id);
+            const hidden = el.visible === false;
             return (
-              <li key={el.id}>
+              <li
+                key={el.id}
+                className={`flex items-center gap-1 rounded px-2 py-1.5 text-sm transition ${
+                  isSel
+                    ? "bg-accent-soft text-accent"
+                    : "hover:bg-surface2 text-fg"
+                } ${hidden ? "opacity-50" : ""}`}
+              >
                 <button
-                  className={`w-full flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
-                    isSel
-                      ? "bg-accent-soft text-accent"
-                      : "hover:bg-surface2 text-fg"
-                  }`}
+                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
                   onClick={() => setSelection([el.id])}
                 >
                   {iconFor(el.type)}
-                  <span className="truncate flex-1">{elementLabel(el)}</span>
-                  <span
-                    className="opacity-70 hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateElement(el.id, { visible: el.visible === false });
-                    }}
-                  >
-                    {el.visible === false ? (
-                      <EyeOff size={14} />
-                    ) : (
-                      <Eye size={14} />
-                    )}
-                  </span>
+                  <span className="truncate">{elementLabel(el)}</span>
+                </button>
+                <button
+                  className="icon-btn w-6 h-6"
+                  title={hidden ? "Show" : "Hide"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateElement(el.id, { visible: hidden });
+                  }}
+                >
+                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </li>
             );

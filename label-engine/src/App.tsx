@@ -34,6 +34,16 @@ function Editor() {
 
   const canvasRef = useRef<CanvasHandle | null>(null);
 
+  // Auto-capture thumbnail 900ms after last edit (debounced)
+  useEffect(() => {
+    if (!doc || !currentTemplateId || !currentLabelId) return;
+    const timer = setTimeout(() => {
+      const url = canvasRef.current?.toDataURL(0.6);
+      if (url) setLabelThumbnail(currentTemplateId, currentLabelId, url);
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [doc, currentTemplateId, currentLabelId, setLabelThumbnail]);
+
   const openPreview = useCallback(async () => {
     if (!doc) return;
     setPreviewDataUrl(null);

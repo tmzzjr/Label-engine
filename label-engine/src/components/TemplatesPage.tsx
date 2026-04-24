@@ -26,7 +26,7 @@ function Card({
   onDuplicate,
   onDelete,
   onRename,
-  ratio = "4/5",
+  ratio = "7/3",
 }: {
   thumb?: string;
   title: string;
@@ -46,7 +46,7 @@ function Card({
   return (
     <div className="card overflow-hidden group relative">
       <button
-        className="block w-full bg-surface2 hover:bg-surface transition overflow-hidden"
+        className="block w-full bg-surface2 hover:bg-surface transition overflow-hidden flex items-center justify-center p-2"
         style={{ aspectRatio: ratio }}
         onClick={onOpen}
       >
@@ -54,7 +54,7 @@ function Card({
           <img
             src={thumb}
             alt={title}
-            className="w-full h-full object-contain bg-white"
+            className="max-w-full max-h-full object-contain bg-white shadow"
           />
         ) : (
           <EmptyThumb />
@@ -130,17 +130,14 @@ function Card({
 function NewCard({
   onClick,
   label,
-  ratio = "4/5",
 }: {
   onClick: () => void;
   label: string;
-  ratio?: string;
 }) {
   return (
     <button
       onClick={onClick}
-      className="card overflow-hidden flex flex-col items-center justify-center gap-3 bg-surface hover:bg-surface2 border-dashed text-muted hover:text-fg transition"
-      style={{ aspectRatio: `calc(${ratio} + 0.15)` }}
+      className="card overflow-hidden flex flex-col items-center justify-center gap-2 bg-surface hover:bg-surface2 border-dashed text-muted hover:text-fg transition min-h-[180px]"
     >
       <div className="w-12 h-12 rounded-full bg-accent-soft text-accent flex items-center justify-center">
         <Plus size={24} />
@@ -259,7 +256,7 @@ export default function TemplatesPage() {
               </div>
             ) : null}
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <NewCard
                 onClick={() => setCreatingTpl(true)}
                 label="New Template"
@@ -304,7 +301,7 @@ export default function TemplatesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <NewCard
                 onClick={() =>
                   createLabelInTemplate(currentTemplate!.id, "New Label")

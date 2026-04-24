@@ -1,8 +1,9 @@
-import { useMemo } from "react";
-import { Check, X, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, X, AlertTriangle, QrCode } from "lucide-react";
+import QRCode from "qrcode";
 import Modal from "./Modal";
 import { useStore } from "../store";
-import type { TextElement } from "../types";
+import type { QRCodeElement, TextElement } from "../types";
 import { inToPx } from "../types";
 
 interface Props {
@@ -13,11 +14,105 @@ interface Props {
 }
 
 type Status = "ok" | "warn" | "fail";
-
 interface Check {
   label: string;
   status: Status;
   detail?: string;
+}
+
+function QRConfirmCard({
+  qr,
+  scanned,
+  onToggle,
+}: {
+  qr: QRCodeElement;
+  scanned: boolean;
+  onToggle: () => void;
+}) {
+  const [img, setImg] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!qr.value) {
+      setImg(null);
+      return;
+    }
+    QRCode.toDataURL(qr.value, {
+      errorCorrectionLevel: qr.errorLevel,
+      margin: 1,
+      width: 180,
+      color: { dark: "#000000", light: "#ffffff" },
+    })
+      .then((u) => {
+        if (!cancelled) setImg(u);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [qr.value, qr.errorLevel]);
+
+  const empty = !qr.value?.trim();
+  const fieldLabel =
+    qr.field === "qrLink"
+      ? "Product QR"
+      : qr.field === "inventoryQr"
+        ? "Inventory QR"
+        : "QR Code";
+
+  return (
+    <div
+      className={`card p-3 flex gap-3 ${
+        empty ? "border-danger/60" : scanned ? "border-success/60" : ""
+      }`}
+    >
+      <div className="w-24 h-24 flex-shrink-0 bg-white rounded flex items-center justify-center border border-border">
+        {empty ? (
+          <div className="text-center text-danger text-xs leading-tight p-1">
+            No link
+            <br />
+            assigned
+          </div>
+        ) : img ? (
+          <img src={img} className="w-full h-full" alt="QR" />
+        ) : (
+          <QrCode size={28} className="text-muted" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className="text-xs font-semibold text-muted uppercase tracking-wide">
+          {fieldLabel}
+        </div>
+        <div className="text-sm text-fg break-all mt-0.5 line-clamp-2">
+          {empty ? (
+            <span className="text-danger">— empty —</span>
+          ) : (
+            <a
+              href={qr.value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-accent underline decoration-dotted"
+            >
+              {qr.value}
+            </a>
+          )}
+        </div>
+        <label
+          className={`mt-auto pt-2 flex items-center gap-2 text-sm cursor-pointer ${
+            empty ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+        >
+          <input
+            type="checkbox"
+            className="accent-accent"
+            checked={scanned}
+            disabled={empty}
+            onChange={onToggle}
+          />
+          I scanned this QR code and it works
+        </label>
+      </div>
+    </div>
+  );
 }
 
 export default function PreviewModal({
@@ -27,6 +122,20 @@ export default function PreviewModal({
   previewDataUrl,
 }: Props) {
   const { doc } = useStore();
+  const [scanned, setScanned] = useState<Record<string, boolean>>({});
+
+  // Reset confirmations each time modal reopens
+  useEffect(() => {
+    if (open) setScanned({});
+  }, [open]);
+
+  const qrs = useMemo(
+    () =>
+      (doc?.elements.filter((e) => e.type === "qrcode") ??
+        []) as QRCodeElement[],
+    [doc]
+  );
+  const qrsWithContent = qrs.filter((q) => q.value?.trim());
 
   const checks = useMemo<Check[]>(() => {
     if (!doc) return [];
@@ -35,7 +144,8 @@ export default function PreviewModal({
     ) as TextElement[];
     const hasLot =
       texts.some(
-        (t) => t.field === "lot" || /lot/i.test(t.text) || /lote/i.test(t.text)
+        (t) =>
+          t.field === "lot" || /lot/i.test(t.text) || /lote/i.test(t.text)
       ) && !texts.every((t) => /^lot:\s*(——|$)/i.test(t.text));
     const hasMfg =
       texts.some(
@@ -46,11 +156,10 @@ export default function PreviewModal({
       ) && !texts.every((t) => /^mfg:\s*(——|$)/i.test(t.text));
     const hasExp =
       texts.some(
-        (t) => t.field === "expDate" || /exp/i.test(t.text) || /valid/i.test(t.text)
+        (t) =>
+          t.field === "expDate" || /exp/i.test(t.text) || /valid/i.test(t.text)
       ) && !texts.every((t) => /^exp:\s*(——|$)/i.test(t.text));
-    const qrs = doc.elements.filter((e) => e.type === "qrcode");
-    const qrWithoutLink = qrs.filter((q: any) => !q.value || !q.value.trim());
-
+    const qrWithoutLink = qrs.filter((q) => !q.value?.trim());
     const w = inToPx(doc.size.widthIn);
     const h = inToPx(doc.size.heightIn);
     const outOfBounds = doc.elements.filter(
@@ -113,9 +222,21 @@ export default function PreviewModal({
             : undefined,
       },
     ];
-  }, [doc]);
+  }, [doc, qrs]);
 
   const failCount = checks.filter((c) => c.status === "fail").length;
+  const allQrsScanned =
+    qrsWithContent.length === 0 ||
+    qrsWithContent.every((q) => scanned[q.id]);
+  const canExport = failCount === 0 && allQrsScanned;
+
+  const disabledReason = !canExport
+    ? failCount > 0
+      ? "Fix errors before exporting"
+      : `Please confirm you scanned ${qrsWithContent.length} QR code${
+          qrsWithContent.length === 1 ? "" : "s"
+        } before exporting`
+    : "Proceed to export";
 
   return (
     <Modal
@@ -134,25 +255,21 @@ export default function PreviewModal({
               onClose();
               onConfirmExport();
             }}
-            disabled={failCount > 0}
-            title={
-              failCount > 0
-                ? "Fix errors before exporting"
-                : "Proceed to export"
-            }
+            disabled={!canExport}
+            title={disabledReason}
           >
-            Confirm & Export
+            Confirm &amp; Export
           </button>
         </>
       }
     >
-      <div className="grid md:grid-cols-[1fr_280px] gap-6">
-        <div className="flex items-center justify-center bg-bg rounded-lg p-4 min-h-[320px]">
+      <div className="grid md:grid-cols-[1fr_320px] gap-6">
+        <div className="flex items-center justify-center bg-bg rounded-lg p-4 min-h-[240px]">
           {previewDataUrl ? (
             <img
               src={previewDataUrl}
               alt="Preview"
-              className="max-w-full max-h-[60vh] shadow-2xl bg-white"
+              className="max-w-full max-h-[50vh] shadow-2xl bg-white"
               style={{
                 aspectRatio: doc
                   ? `${doc.size.widthIn} / ${doc.size.heightIn}`
@@ -163,42 +280,47 @@ export default function PreviewModal({
             <div className="text-muted text-sm">Generating preview…</div>
           )}
         </div>
-        <div>
-          <h4 className="text-sm font-semibold text-fg mb-2">
-            Validation checklist
-          </h4>
-          <ul className="space-y-2">
-            {checks.map((c, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-fg">
-                <span
-                  className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full ${
-                    c.status === "ok"
-                      ? "bg-success/20 text-success"
-                      : c.status === "warn"
-                        ? "bg-warning/20 text-warning"
-                        : "bg-danger/20 text-danger"
-                  }`}
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-semibold text-fg mb-2">
+              Validation checklist
+            </h4>
+            <ul className="space-y-2">
+              {checks.map((c, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-2 text-sm text-fg"
                 >
-                  {c.status === "ok" ? (
-                    <Check size={12} />
-                  ) : c.status === "warn" ? (
-                    <AlertTriangle size={12} />
-                  ) : (
-                    <X size={12} />
-                  )}
-                </span>
-                <div>
-                  <div>{c.label}</div>
-                  {c.detail && (
-                    <div className="text-xs text-muted">{c.detail}</div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <span
+                    className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full ${
+                      c.status === "ok"
+                        ? "bg-success/20 text-success"
+                        : c.status === "warn"
+                          ? "bg-warning/20 text-warning"
+                          : "bg-danger/20 text-danger"
+                    }`}
+                  >
+                    {c.status === "ok" ? (
+                      <Check size={12} />
+                    ) : c.status === "warn" ? (
+                      <AlertTriangle size={12} />
+                    ) : (
+                      <X size={12} />
+                    )}
+                  </span>
+                  <div>
+                    <div>{c.label}</div>
+                    {c.detail && (
+                      <div className="text-xs text-muted">{c.detail}</div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           {doc && (
-            <div className="mt-6 card p-3 text-xs text-muted space-y-1">
+            <div className="card p-3 text-xs text-muted space-y-1">
               <div>
                 <span className="font-semibold text-fg">Size:</span>{" "}
                 {doc.size.widthIn}" × {doc.size.heightIn}"
@@ -211,6 +333,45 @@ export default function PreviewModal({
           )}
         </div>
       </div>
+
+      {/* QR scan confirmation */}
+      {qrs.length > 0 && (
+        <div className="mt-6 pt-6 border-t border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-semibold text-fg flex items-center gap-2">
+              <QrCode size={16} />
+              Scan &amp; Confirm QR Codes
+            </h4>
+            <span
+              className={`text-xs ${
+                allQrsScanned ? "text-success" : "text-warning"
+              }`}
+            >
+              {qrsWithContent.length === 0
+                ? "No active QR codes"
+                : `${
+                    Object.values(scanned).filter(Boolean).length
+                  } / ${qrsWithContent.length} confirmed`}
+            </span>
+          </div>
+          <p className="text-xs text-muted mb-3">
+            Scan each QR code with your phone and verify it opens the correct
+            link. You must confirm all active QR codes before exporting.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {qrs.map((q) => (
+              <QRConfirmCard
+                key={q.id}
+                qr={q}
+                scanned={!!scanned[q.id]}
+                onToggle={() =>
+                  setScanned((prev) => ({ ...prev, [q.id]: !prev[q.id] }))
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -143,6 +143,6 @@ export const inToPx = (inches: number) => Math.round(inches * DPI);
 export const pxToIn = (px: number) => px / DPI;
 
 export const STANDARD_SIZES: LabelSize[] = [
-  { widthIn: 0.75, heightIn: 1.75, name: '0.75" × 1.75"' },
-  { widthIn: 0.75, heightIn: 1.875, name: '0.75" × 1.875"' },
+  { widthIn: 1.75, heightIn: 0.75, name: '1.75" × 0.75"' },
+  { widthIn: 1.875, heightIn: 0.75, name: '1.875" × 0.75"' },
 ];

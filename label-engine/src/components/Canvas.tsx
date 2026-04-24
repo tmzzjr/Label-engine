@@ -314,6 +314,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
   };
 
   const renderElement = (el: LabelElement) => {
+    if (el.visible === false) return null;
     const draggable = !el.locked && el.id !== editingTextId;
     const patchFn = (patch: Partial<LabelElement>, shouldCommit = true) =>
       updateElement(el.id, patch, shouldCommit);
