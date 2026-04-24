@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; cd \"$root\" || exit 0; if [ -z \"$(git status --porcelain)\" ]; then exit 0; fi; git add -A && git commit -m \"auto: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >/dev/null 2>&1 && (git push 2>/dev/null || true); exit 0"
+            "command": "root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; cd \"$root\" || exit 0; st=$(git status --porcelain); if [ -z \"$st\" ]; then exit 0; fi; n=$(printf '%s\\n' \"$st\" | wc -l | tr -d ' '); first=$(printf '%s\\n' \"$st\" | head -1 | awk '{print $NF}' | awk -F/ '{print $NF}'); if [ \"$n\" = \"1\" ]; then subject=\"auto: update $first\"; else subject=\"auto: update $first and $((n-1)) more\"; fi; git add -A && git commit -m \"$subject\" -m \"$st\" >/dev/null 2>&1 && (git push 2>/dev/null || true); exit 0"
           }
         ]
       }
