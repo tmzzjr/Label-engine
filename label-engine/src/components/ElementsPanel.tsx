@@ -105,8 +105,8 @@ export default function ElementsPanel({ open, onClose }: Props) {
       height: ch,
       rotation: 0,
       opacity: 1,
-      fill: "#e0e7ff",
-      stroke: "#4338ca",
+      fill: "#dbeafe",
+      stroke: "#1d4ed8",
       strokeWidth: 1,
       cornerRadius: 4,
     };

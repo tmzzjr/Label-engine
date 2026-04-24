@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ArrowUp,
   ArrowDown,
@@ -24,6 +25,9 @@ import {
   Plus,
   Tag,
   X,
+  ChevronDown,
+  ChevronRight,
+  Move,
 } from "lucide-react";
 import { useStore } from "../store";
 import type {
@@ -104,36 +108,67 @@ function ColorField({
 
 function CommonBox({ el }: { el: LabelElement }) {
   const { updateElement } = useStore();
+  const [open, setOpen] = useState(false);
   return (
-    <div className="grid grid-cols-2 gap-2">
-      <NumberField
-        label="X"
-        value={el.x}
-        onChange={(n) => updateElement(el.id, { x: n })}
-      />
-      <NumberField
-        label="Y"
-        value={el.y}
-        onChange={(n) => updateElement(el.id, { y: n })}
-      />
-      <NumberField
-        label="W"
-        value={el.width}
-        onChange={(n) => updateElement(el.id, { width: Math.max(4, n) })}
-      />
-      <NumberField
-        label="H"
-        value={el.height}
-        onChange={(n) => updateElement(el.id, { height: Math.max(4, n) })}
-      />
-      <NumberField
-        label="Rotation"
-        value={el.rotation}
-        onChange={(n) => updateElement(el.id, { rotation: n })}
-        suffix="°"
-      />
+    <>
+      <div className="rounded-md border border-border bg-surface2/60">
+        <button
+          type="button"
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted hover:text-fg transition"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <Move size={14} />
+          <span>Position &amp; Size</span>
+          <span className="ml-auto text-[10px] font-normal normal-case text-subtle">
+            {Math.round(el.x)}, {Math.round(el.y)} · {Math.round(el.width)}×
+            {Math.round(el.height)}
+          </span>
+        </button>
+        {open && (
+          <div className="grid grid-cols-2 gap-2 p-3 border-t border-border">
+            <NumberField
+              label="X"
+              value={el.x}
+              onChange={(n) => updateElement(el.id, { x: n })}
+            />
+            <NumberField
+              label="Y"
+              value={el.y}
+              onChange={(n) => updateElement(el.id, { y: n })}
+            />
+            <NumberField
+              label="W"
+              value={el.width}
+              onChange={(n) =>
+                updateElement(el.id, { width: Math.max(4, n) })
+              }
+            />
+            <NumberField
+              label="H"
+              value={el.height}
+              onChange={(n) =>
+                updateElement(el.id, { height: Math.max(4, n) })
+              }
+            />
+            <NumberField
+              label="Rotation"
+              value={el.rotation}
+              onChange={(n) => updateElement(el.id, { rotation: n })}
+              suffix="°"
+            />
+          </div>
+        )}
+      </div>
+
       <div>
-        <label className="field-label">Opacity</label>
+        <label className="field-label flex items-center justify-between">
+          <span>Opacity</span>
+          <span className="text-subtle font-normal normal-case">
+            {Math.round(el.opacity * 100)}%
+          </span>
+        </label>
         <input
           type="range"
           min={0}
@@ -143,10 +178,10 @@ function CommonBox({ el }: { el: LabelElement }) {
           onChange={(e) =>
             updateElement(el.id, { opacity: parseFloat(e.target.value) })
           }
-          className="w-full"
+          className="w-full accent-accent"
         />
       </div>
-    </div>
+    </>
   );
 }
 
