@@ -56,9 +56,18 @@ export default function Toolbar({
 
   return (
     <header className="h-14 flex-shrink-0 flex items-center gap-1 border-b border-border bg-surface px-2 sm:px-4">
-      {/* Mobile Sidebar Toggles */}
+      {/* Logo — always leftmost, fixed width so it never shifts between pages */}
       <button
-        className={`icon-btn lg:hidden ${leftOpen ? "icon-btn-active" : ""}`}
+        className="flex items-center gap-2 pr-3 border-r border-border flex-shrink-0 w-40 hover:opacity-80 transition"
+        onClick={goTemplates}
+        title="Go to Templates"
+      >
+        <img src="/logo.png" alt="outfitMD Logo" className="h-7 w-auto" />
+      </button>
+
+      {/* Mobile Sidebar Toggle */}
+      <button
+        className={`icon-btn lg:hidden ml-1 ${leftOpen ? "icon-btn-active" : ""}`}
         onClick={() => setLeftOpen(!leftOpen)}
         title="Elements"
       >
@@ -74,10 +83,6 @@ export default function Toolbar({
       >
         <ArrowLeft size={18} />
       </button>
-
-      <div className="hidden sm:flex items-center gap-2 pr-3 border-r border-border ml-1">
-        <img src="/logo.png" alt="outfitMD Logo" className="h-7 w-auto" />
-      </div>
 
       <div className="flex items-center gap-1 sm:gap-2 text-sm ml-1 min-w-0 flex-1 sm:flex-initial">
         <button

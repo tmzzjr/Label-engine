@@ -172,18 +172,21 @@ export default function TemplatesPage() {
 
   return (
     <div className="h-full overflow-y-auto flex flex-col">
-      {/* Top nav */}
-      <header className="h-14 px-4 sm:px-6 flex items-center gap-2 sm:gap-3 border-b border-border bg-surface flex-shrink-0">
+      {/* Top nav — logo anchored left (same slot as editor toolbar) */}
+      <header className="h-14 px-2 sm:px-4 flex items-center gap-1 border-b border-border bg-surface flex-shrink-0">
+        <button
+          className="flex items-center gap-2 pr-3 border-r border-border flex-shrink-0 w-40 hover:opacity-80 transition"
+          onClick={goTemplates}
+          title="Templates home"
+        >
+          <img src="/logo.png" alt="outfitMD Logo" className="h-7 w-auto" />
+        </button>
         {isDetail && (
-          <button className="icon-btn" title="Back" onClick={goTemplates}>
+          <button className="icon-btn ml-1" title="Back" onClick={goTemplates}>
             <ArrowLeft size={18} />
           </button>
         )}
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="outfitMD Logo" className="h-7 sm:h-8 w-auto" />
-        </div>
-        <span className="text-muted mx-1 sm:mx-2">/</span>
-        <div className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base min-w-0">
+        <div className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base min-w-0 ml-2">
           {isDetail ? (
             <>
               <button
@@ -193,7 +196,9 @@ export default function TemplatesPage() {
                 Templates
               </button>
               <span className="text-muted">/</span>
-              <span className="font-medium truncate">{currentTemplate!.name}</span>
+              <span className="font-medium truncate">
+                {currentTemplate!.name}
+              </span>
             </>
           ) : (
             <span className="font-medium">Templates</span>

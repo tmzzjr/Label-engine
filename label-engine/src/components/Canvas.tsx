@@ -2,6 +2,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -256,17 +257,23 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
   }
 
   const onAnyDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-    if (!showGuides || !doc) return;
+    if (!doc) return;
     const node = e.target;
     const id = node.id();
     const moving = doc.elements.find((x) => x.id === id);
     if (!moving) return;
-    const { x, y, guides } = computeGuides(moving, node.x(), node.y());
-    if (x !== node.x() || y !== node.y()) {
-      node.x(x);
-      node.y(y);
+    if (showGuides) {
+      const { x, y, guides } = computeGuides(moving, node.x(), node.y());
+      if (x !== node.x() || y !== node.y()) {
+        node.x(x);
+        node.y(y);
+      }
+      setGuides(guides);
     }
-    setGuides(guides);
+    // Keep QR tooltip glued to the moving QR in real-time (bypass React)
+    if (moving.type === "qrcode") {
+      setQRTooltipPos(id, node.x(), node.y(), moving.width, moving.height);
+    }
   };
   const onAnyDragEnd = () => {
     setGuides([]);
@@ -425,42 +432,41 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     return lines;
   }, [showGrid, gridSize, labelW, labelH]);
 
-  // Render QR link tooltips for selected QR elements (DOM overlay)
-  const qrTooltips = useMemo(() => {
-    if (!doc) return null;
+  // QR tooltips — positioned via direct DOM manipulation so they track
+  // the QR node at 60fps during drag without waiting for React re-renders.
+  const qrTooltipRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+
+  const setQRTooltipPos = (
+    id: string,
+    elX: number,
+    elY: number,
+    elW: number,
+    elH: number
+  ) => {
+    const tip = qrTooltipRefs.current[id];
     const stage = stageRef.current;
-    const wrapper = wrapperRef.current?.getBoundingClientRect();
-    if (!stage || !wrapper) return null;
+    const wrapper = wrapperRef.current;
+    if (!tip || !stage || !wrapper) return;
     const stageBox = stage.container().getBoundingClientRect();
-    const originX = stageBox.left - wrapper.left;
-    const originY = stageBox.top - wrapper.top;
-    return doc.elements
+    const wrapperBox = wrapper.getBoundingClientRect();
+    const originX = stageBox.left - wrapperBox.left;
+    const originY = stageBox.top - wrapperBox.top;
+    const side = Math.min(elW, elH);
+    const left = originX + (elX + side / 2) * scale;
+    const top = originY + (elY + side + 6) * scale;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+  };
+
+  // Reposition tooltips whenever scale/layout/doc changes (non-drag updates)
+  useLayoutEffect(() => {
+    if (!doc) return;
+    doc.elements
       .filter((e) => e.type === "qrcode" && selectedIds.includes(e.id))
-      .map((e) => {
-        const q = e as QElement;
-        const left = originX + (q.x + q.width / 2) * scale;
-        const top = originY + (q.y + q.height + 4) * scale;
-        return (
-          <div
-            key={`tt-${q.id}`}
-            className="pointer-events-none absolute -translate-x-1/2 text-xs px-2 py-1 rounded border shadow"
-            style={{
-              left,
-              top,
-              background: q.value ? "rgba(22, 25, 32, 0.95)" : "#7f1d1d",
-              color: "#fff",
-              borderColor: q.value ? "#363c48" : "#ef4444",
-              maxWidth: 240,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {q.value ? `🔗 ${q.value}` : "⚠ No link assigned"}
-          </div>
-        );
+      .forEach((e) => {
+        setQRTooltipPos(e.id, e.x, e.y, e.width, e.height);
       });
-  }, [doc, selectedIds, scale, containerSize]);
+  });
 
   if (!doc) {
     return (
@@ -555,8 +561,43 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
         </div>
       </div>
 
-      {/* QR tooltips overlay */}
-      {qrTooltips}
+      {/* QR tooltips overlay — positioned via refs during drag */}
+      {doc.elements
+        .filter((e) => e.type === "qrcode" && selectedIds.includes(e.id))
+        .map((e) => {
+          const q = e as QElement;
+          const href = q.value?.trim() || "";
+          return (
+            <a
+              key={`tt-${q.id}`}
+              ref={(node) => {
+                qrTooltipRefs.current[q.id] = node;
+              }}
+              href={href || undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute -translate-x-1/2 text-xs px-2 py-1 rounded border shadow transition hover:ring-2 hover:ring-accent z-20"
+              style={{
+                background: href ? "rgba(22, 25, 32, 0.95)" : "#7f1d1d",
+                color: "#fff",
+                borderColor: href ? "#363c48" : "#ef4444",
+                maxWidth: 240,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                pointerEvents: href ? "auto" : "none",
+                cursor: href ? "pointer" : "default",
+              }}
+              onMouseDown={(ev) => ev.stopPropagation()}
+              onClick={(ev) => {
+                if (!href) ev.preventDefault();
+              }}
+              title={href ? "Open link in new tab" : "No link assigned"}
+            >
+              {href ? `🔗 ${href}` : "⚠ No link assigned"}
+            </a>
+          );
+        })}
 
       {/* Inline text editor */}
       {editingRect && editingTextId && (

@@ -23,7 +23,8 @@ const formatDate = (iso: string) => {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
+  // MM/DD/YYYY
+  return `${m}/${d}/${y}`;
 };
 
 export default function CreateLabelModal({ open, onClose }: Props) {

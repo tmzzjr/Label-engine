@@ -159,23 +159,22 @@ export default function PreviewModal({
     const texts = doc.elements.filter(
       (e) => e.type === "text"
     ) as TextElement[];
-    const hasLot =
-      texts.some(
-        (t) =>
-          t.field === "lot" || /lot/i.test(t.text) || /lote/i.test(t.text)
-      ) && !texts.every((t) => /^lot:\s*(——|$)/i.test(t.text));
-    const hasMfg =
-      texts.some(
-        (t) =>
-          t.field === "mfgDate" ||
-          /mfg/i.test(t.text) ||
-          /manufact/i.test(t.text)
-      ) && !texts.every((t) => /^mfg:\s*(——|$)/i.test(t.text));
-    const hasExp =
-      texts.some(
-        (t) =>
-          t.field === "expDate" || /exp/i.test(t.text) || /valid/i.test(t.text)
-      ) && !texts.every((t) => /^exp:\s*(——|$)/i.test(t.text));
+    // LOT needs the label "LOT" followed by at least 2 digits (e.g. "LOT: 12")
+    const LOT_RX = /lot[:#\s]*\d{2,}/i;
+    // MM/DD/YYYY — month 1-12, day 1-31, 4-digit year
+    const DATE_RX =
+      /\b(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])\/\d{4}\b/;
+    const hasLot = texts.some((t) => LOT_RX.test(t.text));
+    const hasMfg = texts.some(
+      (t) =>
+        (t.field === "mfgDate" || /mfg|manufact/i.test(t.text)) &&
+        DATE_RX.test(t.text)
+    );
+    const hasExp = texts.some(
+      (t) =>
+        (t.field === "expDate" || /\bexp\b|expir|valid/i.test(t.text)) &&
+        DATE_RX.test(t.text)
+    );
     const qrWithoutLink = qrs.filter((q) => !q.value?.trim());
     const w = inToPx(doc.size.widthIn);
     const h = inToPx(doc.size.heightIn);
@@ -194,15 +193,21 @@ export default function PreviewModal({
         status: hasLot ? "ok" : "warn",
         detail: hasLot
           ? undefined
-          : "Add a text element with LOT or map the 'LOT number' field.",
+          : 'Needs a text element like "LOT: 12" (label followed by ≥ 2 digits).',
       },
       {
-        label: "Manufacture date present",
+        label: "Manufacture date present (MM/DD/YYYY)",
         status: hasMfg ? "ok" : "warn",
+        detail: hasMfg
+          ? undefined
+          : 'Needs a text element like "MFG: 04/24/2026".',
       },
       {
-        label: "Expiration date present",
+        label: "Expiration date present (MM/DD/YYYY)",
         status: hasExp ? "ok" : "warn",
+        detail: hasExp
+          ? undefined
+          : 'Needs a text element like "EXP: 04/24/2027".',
       },
       {
         label:
