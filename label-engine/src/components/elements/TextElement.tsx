@@ -59,18 +59,31 @@ export default function TextElementNode({
         const scaleY = node.scaleY();
         const newWidth = Math.max(20, node.width() * scaleX);
         const newHeight = Math.max(12, node.height() * scaleY);
+        const anchor: string | undefined = node
+          .getStage()
+          ?.findOne("Transformer")
+          ?.getActiveAnchor();
+        const isCorner =
+          anchor === "top-left" ||
+          anchor === "top-right" ||
+          anchor === "bottom-left" ||
+          anchor === "bottom-right";
+        const patch: any = {
+          x: node.x(),
+          y: node.y(),
+          width: newWidth,
+          height: newHeight,
+          rotation: node.rotation(),
+        };
+        if (isCorner) {
+          patch.fontSize = Math.max(
+            6,
+            Math.round(el.fontSize * ((scaleX + scaleY) / 2))
+          );
+        }
         node.scaleX(1);
         node.scaleY(1);
-        onChange(
-          {
-            x: node.x(),
-            y: node.y(),
-            width: newWidth,
-            height: newHeight,
-            rotation: node.rotation(),
-          },
-          false
-        );
+        onChange(patch, false);
       }}
       onTransformEnd={() => onChange({}, true)}
     />
