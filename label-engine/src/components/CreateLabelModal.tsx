@@ -14,6 +14,7 @@ const INITIAL: CreateLabelForm = {
   lot: "",
   mfgDate: "",
   expDate: "",
+  concentration: "",
   qrLink: "",
   inventoryQrLink: "",
   notes: "",
@@ -90,6 +91,11 @@ export default function CreateLabelModal({ open, onClose }: Props) {
               break;
             case "expDate":
               value = form.expDate ? `EXP: ${formatDate(form.expDate)}` : t.text;
+              break;
+            case "concentration":
+              value = form.concentration
+                ? `${form.concentration} mg/ml`
+                : t.text;
               break;
             case "notes":
               value = form.notes || t.text;
@@ -197,6 +203,15 @@ export default function CreateLabelModal({ open, onClose }: Props) {
           {errors.expDate && (
             <p className="text-xs text-danger mt-1">{errors.expDate}</p>
           )}
+        </div>
+        <div>
+          <label className="field-label">Concentration (mg/ml)</label>
+          <input
+            className="input"
+            placeholder="e.g. 250"
+            value={form.concentration}
+            onChange={(e) => set("concentration", e.target.value)}
+          />
         </div>
         <div className="col-span-2">
           <label className="field-label">QR Code Link (product)</label>

@@ -321,6 +321,115 @@ function TextEditor({ el }: { el: TextElement }) {
   );
 }
 
+function MultiTextEditor({ els }: { els: TextElement[] }) {
+  const { setDoc } = useStore();
+  const ids = els.map((e) => e.id);
+  const common = <K extends keyof TextElement>(k: K): TextElement[K] | null => {
+    const v = els[0][k];
+    return els.every((e) => e[k] === v) ? v : (null as any);
+  };
+  const apply = (patch: Partial<TextElement>) => {
+    setDoc((d) => ({
+      ...d,
+      elements: d.elements.map((e) =>
+        ids.includes(e.id) && e.type === "text"
+          ? ({ ...e, ...patch } as any)
+          : e
+      ),
+    }));
+  };
+  const fontFamily = common("fontFamily");
+  const fontSize = common("fontSize");
+  const fill = common("fill");
+  const align = common("align");
+  const bold = common("bold");
+  const italic = common("italic");
+  const underline = common("underline");
+  return (
+    <>
+      <div className="text-xs text-muted">
+        {els.length} text elements selected — changes apply to all.
+      </div>
+      <div>
+        <label className="field-label">Font</label>
+        <select
+          className="input"
+          value={fontFamily ?? ""}
+          onChange={(e) => apply({ fontFamily: e.target.value })}
+        >
+          {fontFamily === null && <option value="">(mixed)</option>}
+          {COMMON_FONTS.map((f) => (
+            <option key={f} value={f} style={{ fontFamily: f }}>
+              {f}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="field-label">
+          Size: {fontSize === null ? "(mixed)" : `${fontSize}px`}
+        </label>
+        <input
+          type="number"
+          className="input"
+          value={fontSize ?? ""}
+          placeholder="mixed"
+          onChange={(e) =>
+            apply({ fontSize: parseInt(e.target.value) || 12 })
+          }
+        />
+      </div>
+      <ColorField
+        label={fill === null ? "Color (mixed)" : "Color"}
+        value={fill ?? "#000000"}
+        onChange={(c) => apply({ fill: c })}
+      />
+      <div className="flex gap-1">
+        <button
+          className={`icon-btn ${bold ? "icon-btn-active" : ""}`}
+          onClick={() => apply({ bold: !bold })}
+          title="Bold"
+        >
+          <Bold size={16} />
+        </button>
+        <button
+          className={`icon-btn ${italic ? "icon-btn-active" : ""}`}
+          onClick={() => apply({ italic: !italic })}
+          title="Italic"
+        >
+          <Italic size={16} />
+        </button>
+        <button
+          className={`icon-btn ${underline ? "icon-btn-active" : ""}`}
+          onClick={() => apply({ underline: !underline })}
+          title="Underline"
+        >
+          <Underline size={16} />
+        </button>
+        <div className="w-px bg-border mx-1" />
+        <button
+          className={`icon-btn ${align === "left" ? "icon-btn-active" : ""}`}
+          onClick={() => apply({ align: "left" })}
+        >
+          <AlignLeft size={16} />
+        </button>
+        <button
+          className={`icon-btn ${align === "center" ? "icon-btn-active" : ""}`}
+          onClick={() => apply({ align: "center" })}
+        >
+          <AlignCenter size={16} />
+        </button>
+        <button
+          className={`icon-btn ${align === "right" ? "icon-btn-active" : ""}`}
+          onClick={() => apply({ align: "right" })}
+        >
+          <AlignRight size={16} />
+        </button>
+      </div>
+    </>
+  );
+}
+
 function ImageEditor({ el }: { el: ImageElement }) {
   const { updateElement } = useStore();
   return (
@@ -485,6 +594,7 @@ function FieldMapping({ el }: { el: LabelElement }) {
             <option value="lot">LOT number</option>
             <option value="mfgDate">Manufacture date</option>
             <option value="expDate">Expiration date</option>
+            <option value="concentration">Concentration (mg/ml)</option>
             <option value="notes">Notes</option>
           </>
         )}
@@ -553,7 +663,10 @@ export default function PropertiesPanel({ open, onClose }: Props) {
   } = useStore();
 
   if (!doc) return null;
-  const first = doc.elements.find((e) => selectedIds.includes(e.id));
+  const selected = doc.elements.filter((e) => selectedIds.includes(e.id));
+  const first = selected[0];
+  const multi = selected.length > 1;
+  const allText = multi && selected.every((e) => e.type === "text");
 
   return (
     <>
@@ -651,20 +764,35 @@ export default function PropertiesPanel({ open, onClose }: Props) {
                 </button>
               </div>
 
-              <CommonBox el={first} />
+              {!multi && <CommonBox el={first} />}
 
-              {first.type === "text" && <TextEditor el={first as TextElement} />}
-              {first.type === "image" && (
+              {multi && allText && (
+                <MultiTextEditor els={selected as TextElement[]} />
+              )}
+              {multi && !allText && (
+                <div className="text-sm text-muted">
+                  {selected.length} elements selected (mixed types). Color and
+                  font edits are only available when all selected are text.
+                </div>
+              )}
+              {!multi && first.type === "text" && (
+                <TextEditor el={first as TextElement} />
+              )}
+              {!multi && first.type === "image" && (
                 <ImageEditor el={first as ImageElement} />
               )}
-              {first.type === "qrcode" && (
+              {!multi && first.type === "qrcode" && (
                 <QRCodeEditor el={first as QRCodeElement} />
               )}
-              {first.type === "rect" && <RectEditor el={first as RectElement} />}
-              {first.type === "circle" && (
+              {!multi && first.type === "rect" && (
+                <RectEditor el={first as RectElement} />
+              )}
+              {!multi && first.type === "circle" && (
                 <CircleEditor el={first as CircleElement} />
               )}
-              {first.type === "line" && <LineEditor el={first as LineElement} />}
+              {!multi && first.type === "line" && (
+                <LineEditor el={first as LineElement} />
+              )}
             </div>
           )}
         </div>

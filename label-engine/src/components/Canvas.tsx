@@ -150,16 +150,97 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     getStage: () => stageRef.current,
   }));
 
+  const [marquee, setMarquee] = useState<{
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  } | null>(null);
+  const marqueeStart = useRef<{
+    x: number;
+    y: number;
+    additive: boolean;
+    baseSelection: string[];
+  } | null>(null);
+
   const handleStageMouseDown = (
     e: Konva.KonvaEventObject<MouseEvent | TouchEvent>
   ) => {
     const tgt: any = e.target;
-    if (
+    const isBg =
       tgt === tgt.getStage() ||
-      (typeof tgt.name === "function" && tgt.name() === "isBackground")
-    ) {
+      (typeof tgt.name === "function" && tgt.name() === "isBackground");
+    if (!isBg) return;
+    const stage = stageRef.current;
+    const p = stage?.getPointerPosition();
+    if (!p) {
       setSelection([]);
+      return;
     }
+    const x = p.x / scale;
+    const y = p.y / scale;
+    const shift = !!(e.evt as MouseEvent)?.shiftKey;
+    marqueeStart.current = {
+      x,
+      y,
+      additive: shift,
+      baseSelection: shift ? [...selectedIds] : [],
+    };
+    setMarquee({ x1: x, y1: y, x2: x, y2: y });
+  };
+
+  const handleStageMouseMove = () => {
+    if (!marqueeStart.current) return;
+    const stage = stageRef.current;
+    const p = stage?.getPointerPosition();
+    if (!p) return;
+    const x = p.x / scale;
+    const y = p.y / scale;
+    setMarquee({
+      x1: marqueeStart.current.x,
+      y1: marqueeStart.current.y,
+      x2: x,
+      y2: y,
+    });
+  };
+
+  const handleStageMouseUp = () => {
+    if (!marqueeStart.current || !marquee) {
+      marqueeStart.current = null;
+      setMarquee(null);
+      return;
+    }
+    const start = marqueeStart.current;
+    const left = Math.min(marquee.x1, marquee.x2);
+    const right = Math.max(marquee.x1, marquee.x2);
+    const top = Math.min(marquee.y1, marquee.y2);
+    const bottom = Math.max(marquee.y1, marquee.y2);
+    const dragged = right - left > 2 || bottom - top > 2;
+    if (!dragged) {
+      // treat as a click on background → clear selection unless shift
+      if (!start.additive) setSelection([]);
+    } else if (doc) {
+      const inside = doc.elements
+        .filter((el) => {
+          if (el.locked || el.visible === false) return false;
+          return (
+            el.x < right &&
+            el.x + el.width > left &&
+            el.y < bottom &&
+            el.y + el.height > top
+          );
+        })
+        .map((el) => el.id);
+      if (start.additive) {
+        const next = new Set(start.baseSelection);
+        inside.forEach((id) => next.add(id));
+        setSelection(Array.from(next));
+      } else {
+        setSelection(inside);
+      }
+    }
+    marqueeStart.current = null;
+    setMarquee(null);
   };
 
   function computeGuides(
@@ -330,7 +411,16 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
 
     const selectEl = (e?: any) => {
       if (e?.cancelBubble !== undefined) e.cancelBubble = true;
-      setSelection([el.id]);
+      const shift = !!e?.evt?.shiftKey;
+      if (shift) {
+        if (selectedIds.includes(el.id)) {
+          setSelection(selectedIds.filter((id) => id !== el.id));
+        } else {
+          setSelection([...selectedIds, el.id]);
+        }
+      } else if (!selectedIds.includes(el.id)) {
+        setSelection([el.id]);
+      }
     };
     const commonProps = {
       draggable,
@@ -507,6 +597,10 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
             scale={{ x: scale, y: scale }}
             onMouseDown={handleStageMouseDown as any}
             onTouchStart={handleStageMouseDown as any}
+            onMouseMove={handleStageMouseMove as any}
+            onTouchMove={handleStageMouseMove as any}
+            onMouseUp={handleStageMouseUp as any}
+            onTouchEnd={handleStageMouseUp as any}
           >
             <Layer onDragMove={onAnyDragMove} onDragEnd={onAnyDragEnd}>
               <Rect
@@ -558,6 +652,19 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
                 listening={false}
                 dash={[6 / scale, 4 / scale]}
               />
+              {marquee && (
+                <Rect
+                  x={Math.min(marquee.x1, marquee.x2)}
+                  y={Math.min(marquee.y1, marquee.y2)}
+                  width={Math.abs(marquee.x2 - marquee.x1)}
+                  height={Math.abs(marquee.y2 - marquee.y1)}
+                  fill="rgba(59,130,246,0.1)"
+                  stroke="#3b82f6"
+                  strokeWidth={1 / scale}
+                  dash={[4 / scale, 3 / scale]}
+                  listening={false}
+                />
+              )}
             </Layer>
           </Stage>
         </div>

@@ -17,6 +17,7 @@ export type FieldKey =
   | "lot"
   | "mfgDate"
   | "expDate"
+  | "concentration"
   | "qrLink"
   | "inventoryQr"
   | "notes"
@@ -134,6 +135,7 @@ export interface CreateLabelForm {
   lot: string;
   mfgDate: string;
   expDate: string;
+  concentration: string;
   qrLink: string;
   inventoryQrLink: string;
   notes: string;
