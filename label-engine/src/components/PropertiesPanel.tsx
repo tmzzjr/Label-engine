@@ -221,18 +221,22 @@ function TextEditor({ el }: { el: TextElement }) {
             type="range"
             min={6}
             max={96}
+            step={0.1}
             value={el.fontSize}
             onChange={(e) =>
-              updateElement(el.id, { fontSize: parseInt(e.target.value) })
+              updateElement(el.id, { fontSize: parseFloat(e.target.value) })
             }
             className="flex-1"
           />
           <input
             type="number"
+            step={0.01}
             className="input w-20"
             value={el.fontSize}
             onChange={(e) =>
-              updateElement(el.id, { fontSize: parseInt(e.target.value) || 12 })
+              updateElement(el.id, {
+                fontSize: parseFloat(e.target.value) || 12,
+              })
             }
           />
         </div>
@@ -263,6 +267,24 @@ function TextEditor({ el }: { el: TextElement }) {
           title="Underline"
         >
           <Underline size={16} />
+        </button>
+        <button
+          className="icon-btn font-semibold text-xs"
+          onClick={() =>
+            updateElement(el.id, { text: el.text.toUpperCase() })
+          }
+          title="UPPERCASE"
+        >
+          AA
+        </button>
+        <button
+          className="icon-btn font-semibold text-xs"
+          onClick={() =>
+            updateElement(el.id, { text: el.text.toLowerCase() })
+          }
+          title="lowercase"
+        >
+          aa
         </button>
         <div className="w-px bg-border mx-1" />
         <button
@@ -371,11 +393,12 @@ function MultiTextEditor({ els }: { els: TextElement[] }) {
         </label>
         <input
           type="number"
+          step={0.01}
           className="input"
           value={fontSize ?? ""}
           placeholder="mixed"
           onChange={(e) =>
-            apply({ fontSize: parseInt(e.target.value) || 12 })
+            apply({ fontSize: parseFloat(e.target.value) || 12 })
           }
         />
       </div>
@@ -405,6 +428,38 @@ function MultiTextEditor({ els }: { els: TextElement[] }) {
           title="Underline"
         >
           <Underline size={16} />
+        </button>
+        <button
+          className="icon-btn font-semibold text-xs"
+          onClick={() =>
+            setDoc((d) => ({
+              ...d,
+              elements: d.elements.map((e) =>
+                ids.includes(e.id) && e.type === "text"
+                  ? ({ ...e, text: e.text.toUpperCase() } as any)
+                  : e
+              ),
+            }))
+          }
+          title="UPPERCASE"
+        >
+          AA
+        </button>
+        <button
+          className="icon-btn font-semibold text-xs"
+          onClick={() =>
+            setDoc((d) => ({
+              ...d,
+              elements: d.elements.map((e) =>
+                ids.includes(e.id) && e.type === "text"
+                  ? ({ ...e, text: e.text.toLowerCase() } as any)
+                  : e
+              ),
+            }))
+          }
+          title="lowercase"
+        >
+          aa
         </button>
         <div className="w-px bg-border mx-1" />
         <button

@@ -79,7 +79,7 @@ export default function TextElementNode({
         if (isCorner) {
           patch.fontSize = Math.max(
             6,
-            Math.round(el.fontSize * ((scaleX + scaleY) / 2))
+            Math.round(el.fontSize * ((scaleX + scaleY) / 2) * 100) / 100
           );
         }
         node.scaleX(1);
