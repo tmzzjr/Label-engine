@@ -59,7 +59,6 @@ export default function TextElementNode({
         const scaleY = node.scaleY();
         const newWidth = Math.max(20, node.width() * scaleX);
         const newHeight = Math.max(12, node.height() * scaleY);
-        const newFontSize = Math.max(6, el.fontSize * ((scaleX + scaleY) / 2));
         node.scaleX(1);
         node.scaleY(1);
         onChange(
@@ -69,7 +68,6 @@ export default function TextElementNode({
             width: newWidth,
             height: newHeight,
             rotation: node.rotation(),
-            fontSize: Math.round(newFontSize),
           },
           false
         );
