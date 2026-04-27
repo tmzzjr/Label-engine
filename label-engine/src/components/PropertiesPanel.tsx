@@ -709,6 +709,7 @@ export default function PropertiesPanel({ open, onClose }: Props) {
     bringToFront,
     sendToBack,
     updateElement,
+    setDoc,
     currentTemplate,
     currentLabelId,
     currentTemplateId,
@@ -717,11 +718,24 @@ export default function PropertiesPanel({ open, onClose }: Props) {
     createLabelInTemplate,
   } = useStore();
 
+  const [layerDragIdx, setLayerDragIdx] = useState<number | null>(null);
+  const [layerOverIdx, setLayerOverIdx] = useState<number | null>(null);
+
   if (!doc) return null;
   const selected = doc.elements.filter((e) => selectedIds.includes(e.id));
   const first = selected[0];
   const multi = selected.length > 1;
   const allText = multi && selected.every((e) => e.type === "text");
+
+  const reorderLayer = (fromDisplayed: number, toDisplayed: number) => {
+    if (fromDisplayed === toDisplayed) return;
+    setDoc((d) => {
+      const reversed = [...d.elements].reverse();
+      const [moved] = reversed.splice(fromDisplayed, 1);
+      reversed.splice(toDisplayed, 0, moved);
+      return { ...d, elements: reversed.reverse() };
+    });
+  };
 
   return (
     <>
@@ -912,17 +926,53 @@ export default function PropertiesPanel({ open, onClose }: Props) {
             Layers
           </h3>
           <ul className="space-y-1">
-            {[...doc.elements].reverse().map((el) => {
+            {[...doc.elements].reverse().map((el, i) => {
               const isSel = selectedIds.includes(el.id);
               const hidden = el.visible === false;
+              const isDragging = layerDragIdx === i;
+              const isOver =
+                layerOverIdx === i &&
+                layerDragIdx !== null &&
+                layerDragIdx !== i;
               return (
                 <li
                   key={el.id}
-                  className={`flex items-center gap-1 rounded px-2 py-1.5 text-sm transition ${
+                  draggable
+                  onDragStart={(e) => {
+                    setLayerDragIdx(i);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (layerOverIdx !== i) setLayerOverIdx(i);
+                  }}
+                  onDragLeave={() => {
+                    if (layerOverIdx === i) setLayerOverIdx(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (layerDragIdx !== null) reorderLayer(layerDragIdx, i);
+                    setLayerDragIdx(null);
+                    setLayerOverIdx(null);
+                  }}
+                  onDragEnd={() => {
+                    setLayerDragIdx(null);
+                    setLayerOverIdx(null);
+                  }}
+                  className={`flex items-center gap-1 rounded px-2 py-1.5 text-sm transition cursor-grab active:cursor-grabbing ${
                     isSel
                       ? "bg-accent-soft text-accent"
                       : "hover:bg-surface2 text-fg"
-                  } ${hidden ? "opacity-50" : ""}`}
+                  } ${hidden ? "opacity-50" : ""} ${
+                    isDragging ? "opacity-30" : ""
+                  } ${
+                    isOver
+                      ? layerDragIdx! > i
+                        ? "border-t-2 border-accent"
+                        : "border-b-2 border-accent"
+                      : ""
+                  }`}
                 >
                   <button
                     className="flex items-center gap-2 min-w-0 flex-1 text-left"

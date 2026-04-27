@@ -250,7 +250,7 @@ export default function ElementsPanel({ open, onClose }: Props) {
                 <Type size={20} /> Text
               </button>
               <button className={tile} onClick={() => fileRef.current?.click()}>
-                <ImgIcon size={20} /> Logo
+                <ImgIcon size={20} /> Image
               </button>
               <button className={tile} onClick={addQR}>
                 <QrCode size={20} /> QR Code
