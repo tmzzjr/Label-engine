@@ -45,6 +45,7 @@ export default function TextElementNode({
       fill={el.fill}
       align={el.align}
       lineHeight={el.lineHeight}
+      letterSpacing={el.letterSpacing ?? 0}
       verticalAlign="top"
       wrap="word"
       onMouseDown={onSelect}

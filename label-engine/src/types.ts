@@ -47,6 +47,7 @@ export interface TextElement extends BaseElement {
   underline: boolean;
   align: TextAlign;
   lineHeight: number;
+  letterSpacing: number;
 }
 
 export interface ImageElement extends BaseElement {

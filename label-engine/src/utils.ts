@@ -38,6 +38,7 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
       underline: false,
       align: "center",
       lineHeight: 1.1,
+      letterSpacing: 0,
       field: "productName",
     } as TextElement,
     {
@@ -58,6 +59,7 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
       underline: false,
       align: "left",
       lineHeight: 1.1,
+      letterSpacing: 0,
       field: "sku",
     } as TextElement,
     {
@@ -78,6 +80,7 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
       underline: false,
       align: "left",
       lineHeight: 1.1,
+      letterSpacing: 0,
       field: "lot",
     } as TextElement,
     {
@@ -98,6 +101,7 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
       underline: false,
       align: "left",
       lineHeight: 1.1,
+      letterSpacing: 0,
       field: "mfgDate",
     } as TextElement,
     {
@@ -118,6 +122,7 @@ export function starterDocument(name = "Untitled Label"): LabelDocument {
       underline: false,
       align: "left",
       lineHeight: 1.1,
+      letterSpacing: 0,
       field: "expDate",
     } as TextElement,
   ];

@@ -66,6 +66,7 @@ export default function ElementsPanel({ open, onClose }: Props) {
       underline: false,
       align: "center",
       lineHeight: 1.2,
+      letterSpacing: 0,
     };
     addElement(el);
     if (window.innerWidth < 1024) onClose();

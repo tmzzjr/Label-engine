@@ -300,6 +300,22 @@ function TextEditor({ el }: { el: TextElement }) {
           className="w-full"
         />
       </div>
+      <div>
+        <label className="field-label">
+          Letter spacing: {(el.letterSpacing ?? 0).toFixed(1)}px
+        </label>
+        <input
+          type="range"
+          min={-5}
+          max={20}
+          step={0.1}
+          value={el.letterSpacing ?? 0}
+          onChange={(e) =>
+            updateElement(el.id, { letterSpacing: parseFloat(e.target.value) })
+          }
+          className="w-full"
+        />
+      </div>
       <FieldMapping el={el} />
     </>
   );

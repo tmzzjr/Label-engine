@@ -104,6 +104,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     underline: boolean;
     align: "left" | "center" | "right";
     lineHeight: number;
+    letterSpacing: number;
     rotation: number;
     initial: string;
   } | null>(null);
@@ -307,6 +308,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
       underline: el.underline,
       align: el.align,
       lineHeight: el.lineHeight,
+      letterSpacing: (el.letterSpacing ?? 0) * scale,
       rotation: el.rotation,
       initial: el.text,
     });
@@ -629,6 +631,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
             textDecoration: editingRect.underline ? "underline" : "none",
             textAlign: editingRect.align,
             lineHeight: editingRect.lineHeight,
+            letterSpacing: `${editingRect.letterSpacing}px`,
             transform: `rotate(${editingRect.rotation}deg)`,
             transformOrigin: "top left",
             background: "rgba(255,255,255,0.98)",

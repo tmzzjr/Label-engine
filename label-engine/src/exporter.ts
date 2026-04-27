@@ -165,6 +165,7 @@ async function addElementToLayer(
         fill: applyMode(t.fill, mode),
         align: t.align,
         lineHeight: t.lineHeight,
+        letterSpacing: (t.letterSpacing ?? 0) * scale,
         wrap: "word",
       })
     );
@@ -294,7 +295,7 @@ export async function renderSVG(
         )}" font-size="${t.fontSize}" fill="${applyMode(
           t.fill,
           mode
-        )}" font-weight="${fontWeight}" font-style="${fontStyle}" text-decoration="${decoration}" text-anchor="${textAnchor}" opacity="${opacity}" transform="${transform}">`
+        )}" font-weight="${fontWeight}" font-style="${fontStyle}" text-decoration="${decoration}" text-anchor="${textAnchor}" letter-spacing="${t.letterSpacing ?? 0}" opacity="${opacity}" transform="${transform}">`
       );
       lines.forEach((ln, i) => {
         parts.push(
