@@ -75,6 +75,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     selectedIds,
     setSelection,
     updateElement,
+    setDoc,
     commit,
     snapToGrid,
     gridSize,
@@ -338,6 +339,23 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     return { x: newX, y: newY, guides: activeGuides };
   }
 
+  const dragStartPositions = useRef<Record<
+    string,
+    { x: number; y: number }
+  > | null>(null);
+
+  const onAnyDragStart = (e: Konva.KonvaEventObject<DragEvent>) => {
+    if (!doc) return;
+    const id = e.target.id();
+    if (!selectedIds.includes(id) || selectedIds.length < 2) return;
+    const snap: Record<string, { x: number; y: number }> = {};
+    selectedIds.forEach((sid) => {
+      const el = doc.elements.find((x) => x.id === sid);
+      if (el) snap[sid] = { x: el.x, y: el.y };
+    });
+    dragStartPositions.current = snap;
+  };
+
   const onAnyDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     if (!doc) return;
     const node = e.target;
@@ -352,6 +370,38 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
       }
       setGuides(guides);
     }
+    // Multi-drag: move all selected siblings together
+    if (dragStartPositions.current && dragStartPositions.current[id]) {
+      const start = dragStartPositions.current[id];
+      const dx = node.x() - start.x;
+      const dy = node.y() - start.y;
+      const ids = selectedIds;
+      const startMap = dragStartPositions.current;
+      setDoc(
+        (d) => ({
+          ...d,
+          elements: d.elements.map((el) => {
+            if (el.id === id)
+              return { ...el, x: node.x(), y: node.y() };
+            if (!ids.includes(el.id)) return el;
+            const sp = startMap[el.id];
+            if (!sp) return el;
+            return { ...el, x: sp.x + dx, y: sp.y + dy };
+          }),
+        }),
+        false
+      );
+      // Mirror the new position on sibling Konva nodes for instant feedback
+      ids.forEach((sid) => {
+        if (sid === id) return;
+        const otherNode = nodeRefs.current[sid];
+        const sp = startMap[sid];
+        if (otherNode && sp) {
+          otherNode.x(sp.x + dx);
+          otherNode.y(sp.y + dy);
+        }
+      });
+    }
     // Keep QR tooltip glued to the moving QR in real-time (bypass React)
     if (moving.type === "qrcode") {
       setQRTooltipPos(id, node.x(), node.y(), moving.width, moving.height);
@@ -360,6 +410,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
   const onAnyDragEnd = () => {
     setGuides([]);
     commit();
+    dragStartPositions.current = null;
   };
 
   const setRef = (id: string) => (node: Konva.Node | null) => {
@@ -602,7 +653,11 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
             onMouseUp={handleStageMouseUp as any}
             onTouchEnd={handleStageMouseUp as any}
           >
-            <Layer onDragMove={onAnyDragMove} onDragEnd={onAnyDragEnd}>
+            <Layer
+              onDragStart={onAnyDragStart}
+              onDragMove={onAnyDragMove}
+              onDragEnd={onAnyDragEnd}
+            >
               <Rect
                 x={0}
                 y={0}
