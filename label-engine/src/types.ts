@@ -104,8 +104,7 @@ export interface LabelSize {
 
 export interface CutGuide {
   id: string;
-  orientation: "h" | "v";
-  pos: number;
+  inset: number;
 }
 
 export interface LabelDocument {

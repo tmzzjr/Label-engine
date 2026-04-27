@@ -292,10 +292,10 @@ export default function ElementsPanel({ open, onClose }: Props) {
               ) : (
                 <Upload size={16} />
               )}
-              {bgLoading ? "Processing…" : "Upload image / PDF"}
+              {bgLoading ? "Processing…" : "Upload image / PDF / AI"}
             </button>
             <p className="text-[11px] text-muted mt-1">
-              PNG, JPG, SVG or PDF (first page).
+              PNG, JPG, SVG, PDF or AI (first page).
             </p>
             {bgError && (
               <p className="text-xs text-danger mt-2">{bgError}</p>
@@ -311,7 +311,7 @@ export default function ElementsPanel({ open, onClose }: Props) {
             <input
               ref={bgFileRef}
               type="file"
-              accept="image/png,image/jpeg,image/svg+xml,application/pdf,.pdf"
+              accept="image/png,image/jpeg,image/svg+xml,application/pdf,application/postscript,application/illustrator,.pdf,.ai"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];

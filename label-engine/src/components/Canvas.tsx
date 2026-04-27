@@ -1,4 +1,4 @@
-import {
+import React, {
   forwardRef,
   useEffect,
   useImperativeHandle,
@@ -36,6 +36,8 @@ import AlignmentGuides from "./AlignmentGuides";
 import type { Guide } from "./AlignmentGuides";
 
 const SNAP_THRESHOLD = 4;
+const RULER_HEIGHT = 24;
+const DPI = 300;
 
 export interface CanvasHandle {
   toDataURL: (pixelRatio?: number) => string;
@@ -130,7 +132,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     if (!containerSize.w || !containerSize.h || !labelW || !labelH) return 1;
     const pad = 48;
     const sx = (containerSize.w - pad) / labelW;
-    const sy = (containerSize.h - pad) / labelH;
+    const sy = (containerSize.h - RULER_HEIGHT - pad) / labelH;
     return Math.min(sx, sy, 3);
   }, [containerSize, labelW, labelH]);
 
@@ -426,23 +428,39 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     else delete nodeRefs.current[id];
   };
 
-  // Ruler / cut-guide drag flow
+  // Ruler / cut-guide drag flow. The cut margin is a single inset value applied
+  // symmetrically to all 4 sides; dragging any side recomputes inset from that
+  // side's perpendicular distance to the canvas edge.
   const startGuideDrag = (
     mode: "create" | "move",
+    side: "top" | "bottom" | "left" | "right",
     id: string | null,
     e: React.MouseEvent | React.TouchEvent
   ) => {
     e.preventDefault();
     guideDrag.current = { mode, id };
+    let lastInset = 0;
+    let lastRemove = false;
     const onMove = (ev: MouseEvent | TouchEvent) => {
       const stage = stageRef.current;
       if (!stage) return;
       const box = stage.container().getBoundingClientRect();
-      const clientY =
+      const cx =
+        "touches" in ev ? ev.touches[0]?.clientX : (ev as MouseEvent).clientX;
+      const cy =
         "touches" in ev ? ev.touches[0]?.clientY : (ev as MouseEvent).clientY;
-      if (clientY === undefined) return;
-      const yLabel = (clientY - box.top) / scale;
-      setGuidePreview(yLabel);
+      if (cx === undefined || cy === undefined) return;
+      const xLabel = (cx - box.left) / scale;
+      const yLabel = (cy - box.top) / scale;
+      let raw: number;
+      if (side === "top") raw = yLabel;
+      else if (side === "bottom") raw = labelH - yLabel;
+      else if (side === "left") raw = xLabel;
+      else raw = labelW - xLabel;
+      const cap = Math.min(labelW, labelH) / 2;
+      lastRemove = raw < 0;
+      lastInset = Math.max(0, Math.min(raw, cap));
+      setGuidePreview(lastInset);
     };
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
@@ -450,25 +468,18 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onUp);
       const drag = guideDrag.current;
-      const yLabel = guidePreview;
       guideDrag.current = null;
       setGuidePreview(null);
-      if (!drag || yLabel === null || !doc) return;
-      const inside = yLabel >= 0 && yLabel <= labelH;
+      if (!drag || !doc) return;
       if (drag.mode === "create") {
-        if (!inside) return;
-        const newGuide: CutGuide = {
-          id: uid(),
-          orientation: "h",
-          pos: yLabel,
-        };
+        if (lastRemove || lastInset <= 0) return;
+        const newGuide: CutGuide = { id: uid(), inset: lastInset };
         setDoc((d) => ({
           ...d,
           cutGuides: [...(d.cutGuides ?? []), newGuide],
         }));
       } else if (drag.id) {
-        if (!inside) {
-          // dropped outside: remove
+        if (lastRemove) {
           setDoc((d) => ({
             ...d,
             cutGuides: (d.cutGuides ?? []).filter((g) => g.id !== drag.id),
@@ -477,7 +488,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
           setDoc((d) => ({
             ...d,
             cutGuides: (d.cutGuides ?? []).map((g) =>
-              g.id === drag.id ? { ...g, pos: yLabel } : g
+              g.id === drag.id ? { ...g, inset: lastInset } : g
             ),
           }));
         }
@@ -693,77 +704,42 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
   return (
     <div
       ref={wrapperRef}
-      className="relative flex-1 overflow-hidden bg-bg"
+      className="relative flex-1 overflow-hidden bg-bg flex flex-col"
       style={{ minHeight: 0 }}
     >
       <div
-        className="absolute inset-0 flex items-center justify-center"
+        onMouseDown={(e) => startGuideDrag("create", "top", null, e)}
+        onTouchStart={(e) => startGuideDrag("create", "top", null, e)}
+        title="Drag down onto the design to add a cut margin"
+        style={{
+          height: RULER_HEIGHT,
+          flexShrink: 0,
+          background: "#0f172a",
+          borderBottom: "1px solid #1f2937",
+          cursor: "ns-resize",
+          userSelect: "none",
+          display: "flex",
+          alignItems: "center",
+          paddingLeft: 10,
+          color: "#94a3b8",
+          fontSize: 11,
+          fontFamily: "system-ui",
+          letterSpacing: 0.2,
+        }}
+      >
+        Drag down to add a cut margin
+      </div>
+      <div
+        className="relative flex-1"
         style={{
           backgroundImage:
             "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)",
           backgroundSize: "18px 18px",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div
-            onMouseDown={(e) => startGuideDrag("create", null, e)}
-            onTouchStart={(e) => startGuideDrag("create", null, e)}
-            title="Drag down to add a cut guide"
-            style={{
-              width: labelW * scale,
-              height: 22,
-              background: "#0f172a",
-              borderTop: "1px solid #1f2937",
-              borderLeft: "1px solid #1f2937",
-              borderRight: "1px solid #1f2937",
-              cursor: "ns-resize",
-              position: "relative",
-              userSelect: "none",
-            }}
-          >
-            {(() => {
-              const ticks: ReactElement[] = [];
-              const inchPx = 300; // DPI
-              const stepIn = 1 / 8;
-              const stepPx = inchPx * stepIn;
-              for (let p = 0; p <= labelW; p += stepPx) {
-                const isInch = Math.abs((p / inchPx) % 1) < 0.001;
-                const isHalf = Math.abs((p / inchPx) % 0.5) < 0.001;
-                const h = isInch ? 12 : isHalf ? 8 : 5;
-                ticks.push(
-                  <div
-                    key={p}
-                    style={{
-                      position: "absolute",
-                      left: p * scale,
-                      bottom: 0,
-                      width: 1,
-                      height: h,
-                      background: "#94a3b8",
-                    }}
-                  />
-                );
-                if (isInch && p > 0) {
-                  ticks.push(
-                    <div
-                      key={`l${p}`}
-                      style={{
-                        position: "absolute",
-                        left: p * scale + 2,
-                        top: 1,
-                        fontSize: 9,
-                        color: "#94a3b8",
-                        fontFamily: "system-ui",
-                      }}
-                    >
-                      {(p / inchPx).toFixed(0)}″
-                    </div>
-                  );
-                }
-              }
-              return ticks;
-            })()}
-          </div>
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+      >
           <div
             className="shadow-2xl"
             style={{
@@ -851,62 +827,220 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
                   listening={false}
                 />
               )}
-              {(doc.cutGuides ?? []).map((g) =>
-                g.orientation === "h" ? (
-                  <Rect
-                    key={g.id}
-                    x={0}
-                    y={g.pos - 0.5 / scale}
-                    width={labelW}
-                    height={1 / scale}
-                    fill="#ef4444"
-                    listening={false}
-                    dash={[6 / scale, 4 / scale]}
-                  />
-                ) : null
-              )}
-              {guidePreview !== null && (
-                <Rect
-                  x={0}
-                  y={guidePreview - 0.5 / scale}
-                  width={labelW}
-                  height={1 / scale}
-                  fill="#ef4444"
-                  opacity={0.7}
-                  listening={false}
-                  dash={[6 / scale, 4 / scale]}
-                />
-              )}
+              {(doc.cutGuides ?? []).map((g) => {
+                const ins = g.inset;
+                const sw = 1 / scale;
+                const dash = [6 / scale, 4 / scale] as [number, number];
+                if (ins * 2 >= Math.min(labelW, labelH)) return null;
+                return (
+                  <React.Fragment key={g.id}>
+                    {/* top */}
+                    <Rect
+                      x={ins}
+                      y={ins - sw / 2}
+                      width={labelW - ins * 2}
+                      height={sw}
+                      fill="#ef4444"
+                      listening={false}
+                      dash={dash}
+                    />
+                    {/* bottom */}
+                    <Rect
+                      x={ins}
+                      y={labelH - ins - sw / 2}
+                      width={labelW - ins * 2}
+                      height={sw}
+                      fill="#ef4444"
+                      listening={false}
+                      dash={dash}
+                    />
+                    {/* left */}
+                    <Rect
+                      x={ins - sw / 2}
+                      y={ins}
+                      width={sw}
+                      height={labelH - ins * 2}
+                      fill="#ef4444"
+                      listening={false}
+                      dash={dash}
+                    />
+                    {/* right */}
+                    <Rect
+                      x={labelW - ins - sw / 2}
+                      y={ins}
+                      width={sw}
+                      height={labelH - ins * 2}
+                      fill="#ef4444"
+                      listening={false}
+                      dash={dash}
+                    />
+                  </React.Fragment>
+                );
+              })}
+              {guidePreview !== null &&
+                (() => {
+                  const ins = guidePreview;
+                  const sw = 1 / scale;
+                  const dash = [6 / scale, 4 / scale] as [number, number];
+                  if (ins * 2 >= Math.min(labelW, labelH)) return null;
+                  return (
+                    <>
+                      <Rect
+                        x={ins}
+                        y={ins - sw / 2}
+                        width={labelW - ins * 2}
+                        height={sw}
+                        fill="#ef4444"
+                        opacity={0.85}
+                        listening={false}
+                        dash={dash}
+                      />
+                      <Rect
+                        x={ins}
+                        y={labelH - ins - sw / 2}
+                        width={labelW - ins * 2}
+                        height={sw}
+                        fill="#ef4444"
+                        opacity={0.85}
+                        listening={false}
+                        dash={dash}
+                      />
+                      <Rect
+                        x={ins - sw / 2}
+                        y={ins}
+                        width={sw}
+                        height={labelH - ins * 2}
+                        fill="#ef4444"
+                        opacity={0.85}
+                        listening={false}
+                        dash={dash}
+                      />
+                      <Rect
+                        x={labelW - ins - sw / 2}
+                        y={ins}
+                        width={sw}
+                        height={labelH - ins * 2}
+                        fill="#ef4444"
+                        opacity={0.85}
+                        listening={false}
+                        dash={dash}
+                      />
+                    </>
+                  );
+                })()}
             </Layer>
           </Stage>
         </div>
         </div>
       </div>
 
-      {/* Cut-guide hit overlays — invisible strips for grabbing & moving guides */}
+      {/* Cut-guide hit overlays — 4 strips per guide for grabbing each side */}
       {(doc.cutGuides ?? []).map((g) => {
-        if (g.orientation !== "h") return null;
+        const ins = g.inset;
+        if (ins * 2 >= Math.min(labelW, labelH)) return null;
         const stageLeft = (containerSize.w - labelW * scale) / 2;
         const stageTop =
-          (containerSize.h - (22 + labelH * scale)) / 2 + 22;
+          RULER_HEIGHT +
+          (containerSize.h - RULER_HEIGHT - labelH * scale) / 2;
+        const innerW = (labelW - ins * 2) * scale;
+        const innerH = (labelH - ins * 2) * scale;
+        const sideThickness = 8;
+        const tip = "Drag to move · drag past edge to remove";
         return (
-          <div
-            key={`gh-${g.id}`}
-            onMouseDown={(e) => startGuideDrag("move", g.id, e)}
-            onTouchStart={(e) => startGuideDrag("move", g.id, e)}
-            title="Drag to move · drag above ruler to remove"
-            style={{
-              position: "absolute",
-              left: stageLeft,
-              top: stageTop + g.pos * scale - 4,
-              width: labelW * scale,
-              height: 8,
-              cursor: "ns-resize",
-              zIndex: 10,
-            }}
-          />
+          <React.Fragment key={`gh-${g.id}`}>
+            <div
+              onMouseDown={(e) => startGuideDrag("move", "top", g.id, e)}
+              onTouchStart={(e) => startGuideDrag("move", "top", g.id, e)}
+              title={tip}
+              style={{
+                position: "absolute",
+                left: stageLeft + ins * scale,
+                top: stageTop + ins * scale - sideThickness / 2,
+                width: innerW,
+                height: sideThickness,
+                cursor: "ns-resize",
+                zIndex: 10,
+              }}
+            />
+            <div
+              onMouseDown={(e) => startGuideDrag("move", "bottom", g.id, e)}
+              onTouchStart={(e) => startGuideDrag("move", "bottom", g.id, e)}
+              title={tip}
+              style={{
+                position: "absolute",
+                left: stageLeft + ins * scale,
+                top:
+                  stageTop + (labelH - ins) * scale - sideThickness / 2,
+                width: innerW,
+                height: sideThickness,
+                cursor: "ns-resize",
+                zIndex: 10,
+              }}
+            />
+            <div
+              onMouseDown={(e) => startGuideDrag("move", "left", g.id, e)}
+              onTouchStart={(e) => startGuideDrag("move", "left", g.id, e)}
+              title={tip}
+              style={{
+                position: "absolute",
+                left: stageLeft + ins * scale - sideThickness / 2,
+                top: stageTop + ins * scale,
+                width: sideThickness,
+                height: innerH,
+                cursor: "ew-resize",
+                zIndex: 10,
+              }}
+            />
+            <div
+              onMouseDown={(e) => startGuideDrag("move", "right", g.id, e)}
+              onTouchStart={(e) => startGuideDrag("move", "right", g.id, e)}
+              title={tip}
+              style={{
+                position: "absolute",
+                left:
+                  stageLeft + (labelW - ins) * scale - sideThickness / 2,
+                top: stageTop + ins * scale,
+                width: sideThickness,
+                height: innerH,
+                cursor: "ew-resize",
+                zIndex: 10,
+              }}
+            />
+          </React.Fragment>
         );
       })}
+
+      {/* Size label during guide drag */}
+      {guidePreview !== null &&
+        (() => {
+          const stageLeft = (containerSize.w - labelW * scale) / 2;
+          const stageTop =
+            RULER_HEIGHT +
+            (containerSize.h - RULER_HEIGHT - labelH * scale) / 2;
+          const px = guidePreview;
+          const inches = px / DPI;
+          return (
+            <div
+              style={{
+                position: "absolute",
+                left: stageLeft + (labelW * scale) / 2,
+                top: stageTop - 28,
+                transform: "translateX(-50%)",
+                background: "#ef4444",
+                color: "white",
+                fontSize: 11,
+                fontFamily: "system-ui",
+                padding: "2px 8px",
+                borderRadius: 4,
+                pointerEvents: "none",
+                zIndex: 20,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Margin: {px.toFixed(1)}px ({inches.toFixed(3)}″)
+            </div>
+          );
+        })()}
 
       {/* QR tooltips overlay — positioned via refs during drag */}
       {doc.elements

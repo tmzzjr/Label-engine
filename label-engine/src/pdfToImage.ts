@@ -27,8 +27,11 @@ export async function pdfFirstPageToDataURL(
 }
 
 export function isPDF(file: File): boolean {
+  const name = file.name.toLowerCase();
   return (
     file.type === "application/pdf" ||
-    file.name.toLowerCase().endsWith(".pdf")
+    file.type === "application/postscript" ||
+    name.endsWith(".pdf") ||
+    name.endsWith(".ai")
   );
 }
