@@ -19,9 +19,11 @@ import type {
   RectElement,
   CircleElement,
   LineElement,
+  CutGuide,
 } from "../types";
 import { inToPx } from "../types";
 import { useStore } from "../store";
+import { uid } from "../utils";
 import TextElementNode from "./elements/TextElement";
 import ImageElementNode from "./elements/ImageElement";
 import QRCodeElementNode from "./elements/QRCodeElement";
@@ -156,6 +158,12 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     y1: number;
     x2: number;
     y2: number;
+  } | null>(null);
+
+  const [guidePreview, setGuidePreview] = useState<number | null>(null);
+  const guideDrag = useRef<{
+    mode: "create" | "move";
+    id: string | null;
   } | null>(null);
   const marqueeStart = useRef<{
     x: number;
@@ -418,6 +426,69 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
     else delete nodeRefs.current[id];
   };
 
+  // Ruler / cut-guide drag flow
+  const startGuideDrag = (
+    mode: "create" | "move",
+    id: string | null,
+    e: React.MouseEvent | React.TouchEvent
+  ) => {
+    e.preventDefault();
+    guideDrag.current = { mode, id };
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const box = stage.container().getBoundingClientRect();
+      const clientY =
+        "touches" in ev ? ev.touches[0]?.clientY : (ev as MouseEvent).clientY;
+      if (clientY === undefined) return;
+      const yLabel = (clientY - box.top) / scale;
+      setGuidePreview(yLabel);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+      const drag = guideDrag.current;
+      const yLabel = guidePreview;
+      guideDrag.current = null;
+      setGuidePreview(null);
+      if (!drag || yLabel === null || !doc) return;
+      const inside = yLabel >= 0 && yLabel <= labelH;
+      if (drag.mode === "create") {
+        if (!inside) return;
+        const newGuide: CutGuide = {
+          id: uid(),
+          orientation: "h",
+          pos: yLabel,
+        };
+        setDoc((d) => ({
+          ...d,
+          cutGuides: [...(d.cutGuides ?? []), newGuide],
+        }));
+      } else if (drag.id) {
+        if (!inside) {
+          // dropped outside: remove
+          setDoc((d) => ({
+            ...d,
+            cutGuides: (d.cutGuides ?? []).filter((g) => g.id !== drag.id),
+          }));
+        } else {
+          setDoc((d) => ({
+            ...d,
+            cutGuides: (d.cutGuides ?? []).map((g) =>
+              g.id === drag.id ? { ...g, pos: yLabel } : g
+            ),
+          }));
+        }
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("touchend", onUp);
+  };
+
   // Inline text editor: double-click a text element to edit it in place.
   const startInlineEdit = (el: TextElement) => {
     const wrapper = wrapperRef.current?.getBoundingClientRect();
@@ -633,14 +704,74 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
           backgroundSize: "18px 18px",
         }}
       >
-        <div
-          className="shadow-2xl"
-          style={{
-            width: labelW * scale,
-            height: labelH * scale,
-            background: "white",
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div
+            onMouseDown={(e) => startGuideDrag("create", null, e)}
+            onTouchStart={(e) => startGuideDrag("create", null, e)}
+            title="Drag down to add a cut guide"
+            style={{
+              width: labelW * scale,
+              height: 22,
+              background: "#0f172a",
+              borderTop: "1px solid #1f2937",
+              borderLeft: "1px solid #1f2937",
+              borderRight: "1px solid #1f2937",
+              cursor: "ns-resize",
+              position: "relative",
+              userSelect: "none",
+            }}
+          >
+            {(() => {
+              const ticks: ReactElement[] = [];
+              const inchPx = 300; // DPI
+              const stepIn = 1 / 8;
+              const stepPx = inchPx * stepIn;
+              for (let p = 0; p <= labelW; p += stepPx) {
+                const isInch = Math.abs((p / inchPx) % 1) < 0.001;
+                const isHalf = Math.abs((p / inchPx) % 0.5) < 0.001;
+                const h = isInch ? 12 : isHalf ? 8 : 5;
+                ticks.push(
+                  <div
+                    key={p}
+                    style={{
+                      position: "absolute",
+                      left: p * scale,
+                      bottom: 0,
+                      width: 1,
+                      height: h,
+                      background: "#94a3b8",
+                    }}
+                  />
+                );
+                if (isInch && p > 0) {
+                  ticks.push(
+                    <div
+                      key={`l${p}`}
+                      style={{
+                        position: "absolute",
+                        left: p * scale + 2,
+                        top: 1,
+                        fontSize: 9,
+                        color: "#94a3b8",
+                        fontFamily: "system-ui",
+                      }}
+                    >
+                      {(p / inchPx).toFixed(0)}″
+                    </div>
+                  );
+                }
+              }
+              return ticks;
+            })()}
+          </div>
+          <div
+            className="shadow-2xl"
+            style={{
+              width: labelW * scale,
+              height: labelH * scale,
+              background: "white",
+            }}
+          >
           <Stage
             ref={stageRef}
             width={labelW * scale}
@@ -720,10 +851,62 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
                   listening={false}
                 />
               )}
+              {(doc.cutGuides ?? []).map((g) =>
+                g.orientation === "h" ? (
+                  <Rect
+                    key={g.id}
+                    x={0}
+                    y={g.pos - 0.5 / scale}
+                    width={labelW}
+                    height={1 / scale}
+                    fill="#ef4444"
+                    listening={false}
+                    dash={[6 / scale, 4 / scale]}
+                  />
+                ) : null
+              )}
+              {guidePreview !== null && (
+                <Rect
+                  x={0}
+                  y={guidePreview - 0.5 / scale}
+                  width={labelW}
+                  height={1 / scale}
+                  fill="#ef4444"
+                  opacity={0.7}
+                  listening={false}
+                  dash={[6 / scale, 4 / scale]}
+                />
+              )}
             </Layer>
           </Stage>
         </div>
+        </div>
       </div>
+
+      {/* Cut-guide hit overlays — invisible strips for grabbing & moving guides */}
+      {(doc.cutGuides ?? []).map((g) => {
+        if (g.orientation !== "h") return null;
+        const stageLeft = (containerSize.w - labelW * scale) / 2;
+        const stageTop =
+          (containerSize.h - (22 + labelH * scale)) / 2 + 22;
+        return (
+          <div
+            key={`gh-${g.id}`}
+            onMouseDown={(e) => startGuideDrag("move", g.id, e)}
+            onTouchStart={(e) => startGuideDrag("move", g.id, e)}
+            title="Drag to move · drag above ruler to remove"
+            style={{
+              position: "absolute",
+              left: stageLeft,
+              top: stageTop + g.pos * scale - 4,
+              width: labelW * scale,
+              height: 8,
+              cursor: "ns-resize",
+              zIndex: 10,
+            }}
+          />
+        );
+      })}
 
       {/* QR tooltips overlay — positioned via refs during drag */}
       {doc.elements

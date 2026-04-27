@@ -102,6 +102,12 @@ export interface LabelSize {
   name?: string;
 }
 
+export interface CutGuide {
+  id: string;
+  orientation: "h" | "v";
+  pos: number;
+}
+
 export interface LabelDocument {
   id: string;
   name: string;
@@ -109,6 +115,7 @@ export interface LabelDocument {
   background: string;
   backgroundImage?: string;
   elements: LabelElement[];
+  cutGuides?: CutGuide[];
 }
 
 export interface SavedLabel {
