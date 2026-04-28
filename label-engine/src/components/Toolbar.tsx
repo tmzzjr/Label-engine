@@ -1,9 +1,7 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   Undo2,
   Redo2,
-  Save,
-  FolderOpen,
   Ruler,
   Grid3X3,
   Tag,
@@ -20,6 +18,7 @@ interface Props {
   onOpenSize: () => void;
   onOpenCreate: () => void;
   onOpenPreview: () => void;
+  onOpenExport: () => void;
   leftOpen: boolean;
   setLeftOpen: (v: boolean) => void;
   rightOpen: boolean;
@@ -30,6 +29,7 @@ export default function Toolbar({
   onOpenSize,
   onOpenCreate,
   onOpenPreview,
+  onOpenExport,
   leftOpen,
   setLeftOpen,
   rightOpen,
@@ -43,15 +43,12 @@ export default function Toolbar({
     redo,
     canUndo,
     canRedo,
-    saveDocAsJson,
-    loadDocFromFile,
     snapToGrid,
     setSnap,
     goTemplates,
     openTemplate,
     currentTemplateId,
   } = useStore();
-  const fileRef = useRef<HTMLInputElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -152,8 +149,8 @@ export default function Toolbar({
           <Eye size={16} /> <span className="hidden md:inline">Preview</span>
         </button>
         <button
-          className="btn-primary h-8 sm:h-9 px-2 sm:px-3"
-          onClick={onOpenPreview}
+          className="btn h-8 sm:h-9 px-2 sm:px-3 bg-success text-white hover:bg-emerald-600"
+          onClick={onOpenExport}
           title="Export"
         >
           <Download size={16} /> <span className="hidden md:inline">Export</span>
@@ -170,20 +167,6 @@ export default function Toolbar({
         </button>
 
         <div className="hidden sm:flex items-center gap-1">
-          <button
-            className="icon-btn"
-            title="Open project (.json)"
-            onClick={() => fileRef.current?.click()}
-          >
-            <FolderOpen size={16} />
-          </button>
-          <button
-            className="icon-btn"
-            title="Save project as .json"
-            onClick={saveDocAsJson}
-          >
-            <Save size={16} />
-          </button>
           <button
             className="icon-btn"
             onClick={onOpenSize}
@@ -203,24 +186,6 @@ export default function Toolbar({
         {/* Mobile menu dropdown */}
         {menuOpen && (
           <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-lg shadow-xl z-50 p-2 sm:hidden">
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-surface2 rounded"
-              onClick={() => {
-                fileRef.current?.click();
-                setMenuOpen(false);
-              }}
-            >
-              <FolderOpen size={16} /> Open Project
-            </button>
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-surface2 rounded"
-              onClick={() => {
-                saveDocAsJson();
-                setMenuOpen(false);
-              }}
-            >
-              <Save size={16} /> Save Project
-            </button>
             <button
               className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-surface2 rounded"
               onClick={() => {
@@ -250,18 +215,6 @@ export default function Toolbar({
             </button>
           </div>
         )}
-
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) loadDocFromFile(f);
-            e.currentTarget.value = "";
-          }}
-        />
       </div>
 
       {/* Right Sidebar Toggle */}

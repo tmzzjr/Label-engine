@@ -9,6 +9,7 @@ import SizeSelector from "./components/SizeSelector";
 import CreateLabelModal from "./components/CreateLabelModal";
 import PreviewModal from "./components/PreviewModal";
 import ExportModal from "./components/ExportModal";
+import BulkExportModal from "./components/BulkExportModal";
 import TemplatesPage from "./components/TemplatesPage";
 import { renderRaster } from "./exporter";
 
@@ -30,6 +31,7 @@ function Editor() {
   const [createOpen, setCreateOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [bulkExportOpen, setBulkExportOpen] = useState(false);
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
 
   // Responsive state
@@ -142,6 +144,7 @@ function Editor() {
         onOpenSize={() => setSizeOpen(true)}
         onOpenCreate={() => setCreateOpen(true)}
         onOpenPreview={openPreview}
+        onOpenExport={() => setBulkExportOpen(true)}
         leftOpen={leftOpen}
         setLeftOpen={setLeftOpen}
         rightOpen={rightOpen}
@@ -165,6 +168,10 @@ function Editor() {
         onConfirmExport={() => setExportOpen(true)}
       />
       <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
+      <BulkExportModal
+        open={bulkExportOpen}
+        onClose={() => setBulkExportOpen(false)}
+      />
     </div>
   );
 }

@@ -40,6 +40,7 @@ import type {
   TextElement,
 } from "../types";
 import { COMMON_FONTS } from "../utils";
+import Modal from "./Modal";
 
 function NumberField({
   label,
@@ -715,8 +716,12 @@ export default function PropertiesPanel({ open, onClose }: Props) {
     currentTemplateId,
     openLabel,
     duplicateLabel,
+    deleteLabel,
     createLabelInTemplate,
   } = useStore();
+  const [confirmDeleteLabelId, setConfirmDeleteLabelId] = useState<
+    string | null
+  >(null);
 
   const [layerDragIdx, setLayerDragIdx] = useState<number | null>(null);
   const [layerOverIdx, setLayerOverIdx] = useState<number | null>(null);
@@ -913,6 +918,16 @@ export default function PropertiesPanel({ open, onClose }: Props) {
                     >
                       <Copy size={12} />
                     </button>
+                    <button
+                      className="icon-btn w-6 h-6 hover:text-danger"
+                      title="Delete label"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteLabelId(l.id);
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </li>
                 );
               })}
@@ -1003,6 +1018,49 @@ export default function PropertiesPanel({ open, onClose }: Props) {
           </ul>
         </div>
       </aside>
+
+      <Modal
+        open={!!confirmDeleteLabelId}
+        onClose={() => setConfirmDeleteLabelId(null)}
+        title="Delete label?"
+        size="md"
+        footer={
+          <>
+            <button
+              className="btn-secondary"
+              onClick={() => setConfirmDeleteLabelId(null)}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn-danger"
+              onClick={() => {
+                if (confirmDeleteLabelId && currentTemplateId) {
+                  deleteLabel(currentTemplateId, confirmDeleteLabelId);
+                }
+                setConfirmDeleteLabelId(null);
+              }}
+            >
+              Delete
+            </button>
+          </>
+        }
+      >
+        {(() => {
+          const target = currentTemplate?.labels.find(
+            (l) => l.id === confirmDeleteLabelId
+          );
+          return (
+            <p className="text-sm text-fg">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">
+                {target?.name || "this label"}
+              </span>
+              ? This action cannot be undone.
+            </p>
+          );
+        })()}
+      </Modal>
     </>
   );
 }
