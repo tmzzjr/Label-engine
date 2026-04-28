@@ -426,8 +426,8 @@ export async function doExport(
       format: [labelW, labelH],
     });
 
-    // Render raster at minimum 600 DPI for crisp PDF; respect higher requested DPI.
-    const pdfDpi = Math.max(opts.dpi, 600);
+    // Render raster at minimum 1200 DPI for print-quality PDF; respect higher requested DPI.
+    const pdfDpi = Math.max(opts.dpi, 1200);
     const rasterUrl = await renderRaster(doc, {
       dpi: pdfDpi,
       mimeType: "image/png",

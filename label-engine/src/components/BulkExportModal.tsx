@@ -20,7 +20,7 @@ interface Props {
 
 type Phase = "select" | "confirm";
 
-function QRMiniConfirm({
+function QRConfirmCard({
   qr,
   scanned,
   onToggle,
@@ -39,7 +39,7 @@ function QRMiniConfirm({
     QRCode.toDataURL(qr.value, {
       errorCorrectionLevel: qr.errorLevel,
       margin: 1,
-      width: 96,
+      width: 180,
       color: { dark: "#000000", light: "#ffffff" },
     })
       .then((u) => {
@@ -61,38 +61,47 @@ function QRMiniConfirm({
 
   return (
     <div
-      className={`flex items-start gap-2 rounded border p-2 ${
+      className={`card p-3 flex gap-3 ${
         empty
-          ? "border-danger/60 bg-danger/5"
+          ? "border-danger/60"
           : scanned
-            ? "border-success/60 bg-success/5"
-            : "border-border bg-surface2/40"
+            ? "border-success/60"
+            : ""
       }`}
     >
-      <div className="w-12 h-12 flex-shrink-0 bg-white rounded border border-border flex items-center justify-center">
+      <div className="w-24 h-24 flex-shrink-0 bg-white rounded flex items-center justify-center border border-border">
         {empty ? (
-          <span className="text-[9px] text-danger text-center leading-tight px-0.5">
+          <div className="text-center text-danger text-xs leading-tight p-1">
             No link
-          </span>
+            <br />
+            assigned
+          </div>
         ) : img ? (
           <img src={img} className="w-full h-full" alt="QR" />
         ) : (
-          <QrIcon size={18} className="text-muted" />
+          <QrIcon size={28} className="text-muted" />
         )}
       </div>
-      <div className="flex-1 min-w-0 text-xs">
-        <div className="font-semibold text-muted uppercase tracking-wide">
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className="text-xs font-semibold text-muted uppercase tracking-wide">
           {fieldLabel}
         </div>
-        <div className="text-fg break-all line-clamp-2">
+        <div className="text-sm text-fg break-all mt-0.5 line-clamp-2">
           {empty ? (
             <span className="text-danger">— empty —</span>
           ) : (
-            qr.value
+            <a
+              href={qr.value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-accent underline decoration-dotted"
+            >
+              {qr.value}
+            </a>
           )}
         </div>
         <label
-          className={`mt-1 flex items-center gap-1.5 cursor-pointer ${
+          className={`mt-auto pt-2 flex items-center gap-2 text-sm cursor-pointer ${
             empty ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >
@@ -103,7 +112,7 @@ function QRMiniConfirm({
             disabled={empty}
             onChange={onToggle}
           />
-          I scanned this QR
+          I scanned this QR code and it works
         </label>
       </div>
     </div>
@@ -117,6 +126,8 @@ function LabelConfirmCard({
   setScanned,
   confirmed,
   setConfirmed,
+  index,
+  total,
 }: {
   label: SavedLabel;
   preview: string | undefined;
@@ -124,6 +135,8 @@ function LabelConfirmCard({
   setScanned: (next: Record<string, boolean>) => void;
   confirmed: boolean;
   setConfirmed: (v: boolean) => void;
+  index: number;
+  total: number;
 }) {
   const checks = useMemo(
     () => getValidationChecks(label.doc),
@@ -148,113 +161,170 @@ function LabelConfirmCard({
       : `Scan all ${qrsWithContent.length} QR code(s) first`
     : "Confirm this label";
 
+  const aspectRatio = `${label.doc.size.widthIn} / ${label.doc.size.heightIn}`;
+
   return (
-    <div
-      className={`card p-3 space-y-3 ${
-        confirmed ? "border-success/60 bg-success/5" : ""
+    <section
+      className={`rounded-xl border bg-surface transition ${
+        confirmed
+          ? "border-success/60 ring-1 ring-success/30"
+          : "border-border"
       }`}
     >
-      <div className="flex items-start gap-3">
-        <div className="w-28 h-20 flex-shrink-0 bg-white rounded border border-border flex items-center justify-center overflow-hidden">
-          {preview ? (
-            <img
-              src={preview}
-              alt=""
-              className="max-h-full max-w-full object-contain"
-            />
-          ) : (
-            <Loader2 size={18} className="animate-spin text-muted" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold truncate">{label.name}</div>
-          <div className="text-xs text-muted">
-            {label.doc.size.widthIn}″ × {label.doc.size.heightIn}″ ·{" "}
-            {label.doc.elements.length} elements
+      <header className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface2/60 rounded-t-xl">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xs font-semibold text-muted">
+            {index + 1} / {total}
+          </span>
+          <div className="min-w-0">
+            <div className="text-base font-semibold text-fg truncate">
+              {label.name}
+            </div>
+            <div className="text-xs text-muted">
+              {label.doc.size.widthIn}″ × {label.doc.size.heightIn}″ ·{" "}
+              {label.doc.elements.length} elements
+            </div>
           </div>
         </div>
-      </div>
-
-      <div>
-        <div className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
-          Validation
+        <div
+          className={`text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${
+            confirmed
+              ? "bg-success/20 text-success"
+              : canConfirm
+                ? "bg-warning/20 text-warning"
+                : "bg-danger/20 text-danger"
+          }`}
+        >
+          {confirmed
+            ? "Confirmed"
+            : canConfirm
+              ? "Awaiting confirm"
+              : "Action needed"}
         </div>
-        <ul className="space-y-1">
-          {checks.map((c, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs text-fg">
+      </header>
+
+      <div className="p-5">
+        <div className="grid md:grid-cols-[1fr_320px] gap-6">
+          <div className="relative flex items-center justify-center bg-bg rounded-lg p-4 min-h-[240px]">
+            {preview ? (
+              <img
+                src={preview}
+                alt={`Preview of ${label.name}`}
+                className="max-w-full max-h-[40vh] shadow-2xl bg-white"
+                style={{ aspectRatio }}
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-muted text-sm">
+                <Loader2 size={16} className="animate-spin" /> Generating
+                preview…
+              </div>
+            )}
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-fg mb-2">
+              Validation checklist
+            </h4>
+            <ul className="space-y-2">
+              {checks.map((c, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-2 text-sm text-fg"
+                >
+                  <span
+                    className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full ${
+                      c.status === "ok"
+                        ? "bg-success/20 text-success"
+                        : c.status === "warn"
+                          ? "bg-warning/20 text-warning"
+                          : "bg-danger/20 text-danger"
+                    }`}
+                  >
+                    {c.status === "ok" ? (
+                      <Check size={12} />
+                    ) : c.status === "warn" ? (
+                      <AlertTriangle size={12} />
+                    ) : (
+                      <X size={12} />
+                    )}
+                  </span>
+                  <div>
+                    <div>{c.label}</div>
+                    {c.detail && (
+                      <div className="text-xs text-muted">{c.detail}</div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {qrs.length > 0 && (
+          <div className="mt-6 pt-6 border-t border-border">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-fg flex items-center gap-2">
+                <QrIcon size={16} />
+                Scan &amp; Confirm QR Codes
+              </h4>
               <span
-                className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full ${
-                  c.status === "ok"
-                    ? "bg-success/20 text-success"
-                    : c.status === "warn"
-                      ? "bg-warning/20 text-warning"
-                      : "bg-danger/20 text-danger"
+                className={`text-xs ${
+                  allQrsScanned ? "text-success" : "text-warning"
                 }`}
               >
-                {c.status === "ok" ? (
-                  <Check size={10} />
-                ) : c.status === "warn" ? (
-                  <AlertTriangle size={10} />
-                ) : (
-                  <X size={10} />
-                )}
+                {qrsWithContent.length === 0
+                  ? "No active QR codes"
+                  : `${
+                      Object.values(scanned).filter(Boolean).length
+                    } / ${qrsWithContent.length} confirmed`}
               </span>
-              <div>
-                <div>{c.label}</div>
-                {c.detail && (
-                  <div className="text-[11px] text-muted">{c.detail}</div>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {qrs.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
-            QR Codes ({Object.values(scanned).filter(Boolean).length}/
-            {qrsWithContent.length})
+            </div>
+            <p className="text-xs text-muted mb-3">
+              Scan each QR code with your phone and verify it opens the
+              correct link.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {qrs.map((q) => (
+                <QRConfirmCard
+                  key={q.id}
+                  qr={q}
+                  scanned={!!scanned[q.id]}
+                  onToggle={() =>
+                    setScanned({ ...scanned, [q.id]: !scanned[q.id] })
+                  }
+                />
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-2">
-            {qrs.map((q) => (
-              <QRMiniConfirm
-                key={q.id}
-                qr={q}
-                scanned={!!scanned[q.id]}
-                onToggle={() =>
-                  setScanned({ ...scanned, [q.id]: !scanned[q.id] })
-                }
-              />
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      <label
-        className={`flex items-center gap-2 text-sm pt-1 border-t border-border ${
-          canConfirm ? "cursor-pointer" : "opacity-60 cursor-not-allowed"
-        }`}
-        title={blockedReason}
-      >
-        <input
-          type="checkbox"
-          className="accent-accent"
-          checked={confirmed}
-          disabled={!canConfirm}
-          onChange={() => setConfirmed(!confirmed)}
-        />
-        <span className={confirmed ? "text-success font-medium" : ""}>
-          {confirmed ? (
-            <span className="inline-flex items-center gap-1">
-              <Check size={14} /> Confirmed
+        <label
+          className={`mt-6 flex items-center justify-between gap-3 px-4 py-3 rounded-lg border ${
+            confirmed
+              ? "border-success/60 bg-success/10"
+              : canConfirm
+                ? "border-border bg-surface2 cursor-pointer hover:bg-surface2/80"
+                : "border-border bg-surface2/40 opacity-60 cursor-not-allowed"
+          }`}
+          title={blockedReason}
+        >
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              className="accent-accent w-4 h-4"
+              checked={confirmed}
+              disabled={!canConfirm}
+              onChange={() => setConfirmed(!confirmed)}
+            />
+            <span className={confirmed ? "text-success" : "text-fg"}>
+              {confirmed
+                ? "Confirmed — ready to export"
+                : "I reviewed and confirm this label"}
             </span>
-          ) : (
-            "I reviewed and confirm this label"
-          )}
-        </span>
-      </label>
-    </div>
+          </span>
+          {confirmed && <Check size={18} className="text-success" />}
+        </label>
+      </div>
+    </section>
   );
 }
 
@@ -288,7 +358,7 @@ export default function BulkExportModal({ open, onClose }: Props) {
       if (!lbl) return;
       try {
         const url = await renderRaster(lbl.doc, {
-          dpi: 200,
+          dpi: 300,
           mimeType: "image/png",
           colorMode: "rgb",
         });
@@ -321,7 +391,7 @@ export default function BulkExportModal({ open, onClose }: Props) {
         await doExport(lbl.doc, {
           format,
           colorMode: "rgb",
-          dpi: 600,
+          dpi: 1200,
           jpgQuality: 0.95,
           filename: lbl.name || lbl.doc.name || "label",
         });
@@ -341,7 +411,7 @@ export default function BulkExportModal({ open, onClose }: Props) {
           ? "Bulk Export — Select Labels"
           : "Confirm Each Label Before Export"
       }
-      size="xl"
+      size="2xl"
       footer={
         phase === "select" ? (
           <>
@@ -460,8 +530,8 @@ export default function BulkExportModal({ open, onClose }: Props) {
               </select>
             </div>
           </div>
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-            {selectedIds.map((id) => {
+          <div className="space-y-5">
+            {selectedIds.map((id, i) => {
               const l = labels.find((x) => x.id === id);
               if (!l) return null;
               return (
@@ -477,6 +547,8 @@ export default function BulkExportModal({ open, onClose }: Props) {
                   setConfirmed={(v) =>
                     setConfirmed((c) => ({ ...c, [id]: v }))
                   }
+                  index={i}
+                  total={selectedIds.length}
                 />
               );
             })}
