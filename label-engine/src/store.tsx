@@ -209,18 +209,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const setDoc = useCallback(
     (updater: (d: LabelDocument) => LabelDocument, shouldCommit = true) => {
-      if (!doc) return;
-      const next = updater(doc);
-      if (shouldCommit) {
+      let computedNext: LabelDocument | null = null;
+      setTemplates((tpls) =>
+        tpls.map((t) => {
+          if (t.id !== currentTemplateId) return t;
+          return {
+            ...t,
+            labels: t.labels.map((l) => {
+              if (l.id !== currentLabelId) return l;
+              const newDoc = updater(l.doc);
+              computedNext = newDoc;
+              return { ...l, doc: newDoc, updatedAt: Date.now() };
+            }),
+          };
+        })
+      );
+      if (shouldCommit && computedNext) {
         if (lastCommitted.current)
           past.current.push(clone(lastCommitted.current));
         if (past.current.length > HISTORY_LIMIT) past.current.shift();
         future.current = [];
-        lastCommitted.current = clone(next);
+        lastCommitted.current = clone(computedNext);
       }
-      writeDoc(next);
     },
-    [doc, writeDoc]
+    [currentTemplateId, currentLabelId]
   );
 
   const commit = useCallback(() => {

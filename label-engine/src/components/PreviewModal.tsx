@@ -397,11 +397,11 @@ export default function PreviewModal({
           <img
             src={previewDataUrl}
             alt="Preview (zoomed)"
-            className="max-w-[95vw] max-h-[90vh] shadow-2xl bg-white"
+            className="shadow-2xl bg-white"
             style={{
-              aspectRatio: doc
-                ? `${doc.size.widthIn} / ${doc.size.heightIn}`
-                : undefined,
+              width: "95vw",
+              height: "90vh",
+              objectFit: "contain",
             }}
             onClick={(e) => e.stopPropagation()}
           />
