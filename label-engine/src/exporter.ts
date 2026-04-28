@@ -426,13 +426,16 @@ export async function doExport(
       format: [labelW, labelH],
     });
 
+    // Render raster at minimum 600 DPI for crisp PDF; respect higher requested DPI.
+    const pdfDpi = Math.max(opts.dpi, 600);
     const rasterUrl = await renderRaster(doc, {
-      dpi: opts.dpi,
+      dpi: pdfDpi,
       mimeType: "image/png",
       colorMode: opts.colorMode,
     });
 
-    pdf.addImage(rasterUrl, "PNG", 0, 0, labelW, labelH, undefined, "FAST");
+    // "NONE" compression keeps the PNG lossless inside the PDF.
+    pdf.addImage(rasterUrl, "PNG", 0, 0, labelW, labelH, undefined, "NONE");
     pdf.save(`${opts.filename || doc.name || "label"}.pdf`);
   }
 }
