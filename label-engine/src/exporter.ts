@@ -82,16 +82,21 @@ export async function renderRaster(
       })
     );
 
-    // background image
+    // background image — fit-contain preserving aspect ratio
     if (doc.backgroundImage && doc.backgroundVisible !== false) {
       const img = await loadImg(doc.backgroundImage);
+      const nw = img.naturalWidth || widthPx;
+      const nh = img.naturalHeight || heightPx;
+      const ratio = Math.min(widthPx / nw, heightPx / nh);
+      const w = nw * ratio;
+      const h = nh * ratio;
       layer.add(
         new Konva.Image({
           image: img,
-          x: 0,
-          y: 0,
-          width: widthPx,
-          height: heightPx,
+          x: (widthPx - w) / 2,
+          y: (heightPx - h) / 2,
+          width: w,
+          height: h,
           opacity: doc.backgroundOpacity ?? 1,
         })
       );
@@ -261,7 +266,7 @@ export async function renderSVG(
   );
   if (doc.backgroundImage && doc.backgroundVisible !== false) {
     parts.push(
-      `<image href="${doc.backgroundImage}" x="0" y="0" width="${w}" height="${h}" opacity="${
+      `<image href="${doc.backgroundImage}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet" opacity="${
         doc.backgroundOpacity ?? 1
       }"/>`
     );

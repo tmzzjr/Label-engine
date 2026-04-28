@@ -60,13 +60,21 @@ function BackgroundImage({
   opacity: number;
 }) {
   const [img] = useImage(src, "anonymous");
+  if (!img) return null;
+  const nw = (img as HTMLImageElement).naturalWidth || width;
+  const nh = (img as HTMLImageElement).naturalHeight || height;
+  const ratio = Math.min(width / nw, height / nh);
+  const w = nw * ratio;
+  const h = nh * ratio;
+  const x = (width - w) / 2;
+  const y = (height - h) / 2;
   return (
     <KImage
       image={img as any}
-      x={0}
-      y={0}
-      width={width}
-      height={height}
+      x={x}
+      y={y}
+      width={w}
+      height={h}
       opacity={opacity}
       listening={false}
     />
@@ -1023,25 +1031,29 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
             (containerSize.h - RULER_HEIGHT - labelH * scale) / 2;
           const px = guidePreview;
           const inches = px / DPI;
+          const innerWin = Math.max(0, (labelW - 2 * px) / DPI);
+          const innerHin = Math.max(0, (labelH - 2 * px) / DPI);
           return (
             <div
               style={{
                 position: "absolute",
                 left: stageLeft + (labelW * scale) / 2,
-                top: stageTop - 28,
+                top: stageTop - 30,
                 transform: "translateX(-50%)",
                 background: "#ef4444",
                 color: "white",
                 fontSize: 11,
                 fontFamily: "system-ui",
-                padding: "2px 8px",
+                padding: "3px 10px",
                 borderRadius: 4,
                 pointerEvents: "none",
                 zIndex: 20,
                 whiteSpace: "nowrap",
+                lineHeight: 1.3,
               }}
             >
-              Margin: {px.toFixed(1)}px ({inches.toFixed(3)}″)
+              Margin {inches.toFixed(3)}″ ({px.toFixed(1)}px) · Area{" "}
+              {innerWin.toFixed(3)}″ × {innerHin.toFixed(3)}″
             </div>
           );
         })()}
