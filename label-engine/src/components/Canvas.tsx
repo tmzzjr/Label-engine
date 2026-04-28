@@ -810,7 +810,9 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
                 anchorFill="#ffffff"
                 borderStroke="#3b82f6"
                 borderDash={[4, 4]}
-                keepRatio={false}
+                keepRatio={doc.elements.some(
+                  (e) => e.type === "qrcode" && selectedIds.includes(e.id)
+                )}
                 boundBoxFunc={(oldBox, newBox) => {
                   if (newBox.width < 8 || newBox.height < 8) return oldBox;
                   return newBox;
