@@ -1,4 +1,4 @@
-// Export helpers: PNG/JPG/SVG/PDF with DPI, CMYK emulation, crop marks, N-up layouts.
+// Export helpers: PNG/JPG/SVG/PDF (page sized to the label) with DPI and CMYK emulation.
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import Konva from "konva";
@@ -13,11 +13,6 @@ export interface ExportOptions {
   colorMode: ColorMode;
   dpi: number;
   jpgQuality: number; // 0..1
-  cropMarks: boolean;
-  perPage: number; // 1, 2, 4, 6, 8
-  pageWidthIn: number; // for PDF
-  pageHeightIn: number;
-  pageMarginIn: number;
   filename: string;
 }
 
@@ -366,34 +361,6 @@ export async function renderSVG(
   return parts.join("");
 }
 
-function drawCropMarks(
-  pdf: jsPDF,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  lenIn = 0.1
-) {
-  // x,y,w,h in inches (PDF unit is inch)
-  const gap = 0.02;
-  const lw = 0.004;
-  pdf.setLineWidth(lw);
-  pdf.setDrawColor(0, 0, 0);
-  // 4 corners, L-shaped
-  // top-left
-  pdf.line(x - gap - lenIn, y, x - gap, y);
-  pdf.line(x, y - gap - lenIn, x, y - gap);
-  // top-right
-  pdf.line(x + w + gap, y, x + w + gap + lenIn, y);
-  pdf.line(x + w, y - gap - lenIn, x + w, y - gap);
-  // bottom-left
-  pdf.line(x - gap - lenIn, y + h, x - gap, y + h);
-  pdf.line(x, y + h + gap, x, y + h + gap + lenIn);
-  // bottom-right
-  pdf.line(x + w + gap, y + h, x + w + gap + lenIn, y + h);
-  pdf.line(x + w, y + h + gap, x + w, y + h + gap + lenIn);
-}
-
 export async function doExport(
   doc: LabelDocument,
   opts: ExportOptions
@@ -441,58 +408,23 @@ export async function doExport(
   }
 
   if (opts.format === "pdf") {
-    // Use inches as PDF unit; multi-up grid.
-    const pageW = opts.pageWidthIn;
-    const pageH = opts.pageHeightIn;
-    const orient = pageW > pageH ? "l" : "p";
+    // PDF page exactly matches the label's physical size.
+    const labelW = doc.size.widthIn;
+    const labelH = doc.size.heightIn;
+    const orient = labelW > labelH ? "l" : "p";
     const pdf = new jsPDF({
       orientation: orient,
       unit: "in",
-      format: [pageW, pageH],
+      format: [labelW, labelH],
     });
 
-    const labelW = doc.size.widthIn;
-    const labelH = doc.size.heightIn;
-    const margin = opts.pageMarginIn;
-    const gutter = 0.1;
-
-    const perRow = Math.max(
-      1,
-      Math.floor((pageW - 2 * margin + gutter) / (labelW + gutter))
-    );
-    const perCol = Math.max(
-      1,
-      Math.floor((pageH - 2 * margin + gutter) / (labelH + gutter))
-    );
-    const perPageMax = perRow * perCol;
-    const perPage = Math.min(opts.perPage || 1, perPageMax);
-
-    // Render one raster snapshot of the label at print DPI and reuse it.
     const rasterUrl = await renderRaster(doc, {
       dpi: opts.dpi,
       mimeType: "image/png",
       colorMode: opts.colorMode,
     });
 
-    // Place perPage copies on one page (you can extend to multi-page batches).
-    for (let i = 0; i < perPage; i++) {
-      const row = Math.floor(i / perRow);
-      const col = i % perRow;
-      const x = margin + col * (labelW + gutter);
-      const y = margin + row * (labelH + gutter);
-      pdf.addImage(
-        rasterUrl,
-        "PNG",
-        x,
-        y,
-        labelW,
-        labelH,
-        undefined,
-        "FAST"
-      );
-      if (opts.cropMarks) drawCropMarks(pdf, x, y, labelW, labelH);
-    }
-
+    pdf.addImage(rasterUrl, "PNG", 0, 0, labelW, labelH, undefined, "FAST");
     pdf.save(`${opts.filename || doc.name || "label"}.pdf`);
   }
 }

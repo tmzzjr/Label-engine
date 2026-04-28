@@ -9,13 +9,6 @@ interface Props {
   onClose: () => void;
 }
 
-const PAGE_SIZES: Record<string, { w: number; h: number }> = {
-  Letter: { w: 8.5, h: 11 },
-  A4: { w: 8.27, h: 11.69 },
-  Legal: { w: 8.5, h: 14 },
-  Tabloid: { w: 11, h: 17 },
-};
-
 export default function ExportModal({ open, onClose }: Props) {
   const { doc } = useStore();
 
@@ -23,10 +16,6 @@ export default function ExportModal({ open, onClose }: Props) {
   const [colorMode, setColorMode] = useState<ExportOptions["colorMode"]>("rgb");
   const [dpi, setDpi] = useState(300);
   const [jpgQuality, setJpgQuality] = useState(0.92);
-  const [cropMarks, setCropMarks] = useState(false);
-  const [perPage, setPerPage] = useState(1);
-  const [pageSize, setPageSize] = useState("Letter");
-  const [pageMargin, setPageMargin] = useState(0.25);
   const [filename, setFilename] = useState(doc?.name || "label");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -44,11 +33,6 @@ export default function ExportModal({ open, onClose }: Props) {
         colorMode,
         dpi,
         jpgQuality,
-        cropMarks,
-        perPage,
-        pageWidthIn: PAGE_SIZES[pageSize].w,
-        pageHeightIn: PAGE_SIZES[pageSize].h,
-        pageMarginIn: pageMargin,
         filename,
       });
       onClose();
@@ -97,7 +81,7 @@ export default function ExportModal({ open, onClose }: Props) {
           </div>
           <p className="text-xs text-muted mt-1">
             {format === "pdf" &&
-              "PDF for professional printing — supports multiple labels per page."}
+              "PDF sized exactly to the label dimensions."}
             {format === "png" && "High-resolution raster with alpha channel."}
             {format === "jpg" && "Raster with adjustable compression."}
             {format === "svg" &&
@@ -164,58 +148,11 @@ export default function ExportModal({ open, onClose }: Props) {
           </div>
         )}
 
-        {isPdf && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="field-label">Page size</label>
-              <select
-                className="input"
-                value={pageSize}
-                onChange={(e) => setPageSize(e.target.value)}
-              >
-                {Object.keys(PAGE_SIZES).map((k) => (
-                  <option key={k} value={k}>
-                    {k} ({PAGE_SIZES[k].w}" × {PAGE_SIZES[k].h}")
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="field-label">Margin (in)</label>
-              <input
-                type="number"
-                step={0.05}
-                min={0}
-                className="input"
-                value={pageMargin}
-                onChange={(e) => setPageMargin(parseFloat(e.target.value) || 0)}
-              />
-            </div>
-            <div>
-              <label className="field-label">Labels per page</label>
-              <select
-                className="input"
-                value={perPage}
-                onChange={(e) => setPerPage(parseInt(e.target.value))}
-              >
-                {[1, 2, 4, 6, 8, 12, 24, 48].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={cropMarks}
-                  onChange={(e) => setCropMarks(e.target.checked)}
-                />
-                Crop marks
-              </label>
-            </div>
-          </div>
+        {isPdf && doc && (
+          <p className="text-xs text-muted">
+            Page size: {doc.size.widthIn}″ × {doc.size.heightIn}″ (matches the
+            label).
+          </p>
         )}
 
         <div>
