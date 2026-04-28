@@ -9,6 +9,9 @@ import {
   Upload,
   X,
   Loader2,
+  Eye,
+  EyeOff,
+  Trash2,
 } from "lucide-react";
 import { pdfFirstPageToDataURL, isPDF } from "../pdfToImage";
 import { useStore } from "../store";
@@ -29,7 +32,7 @@ interface Props {
 }
 
 export default function ElementsPanel({ open, onClose }: Props) {
-  const { doc, addElement, setBackgroundImage } = useStore();
+  const { doc, addElement, setBackgroundImage, setDoc } = useStore();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const bgFileRef = useRef<HTMLInputElement | null>(null);
   const [bgLoading, setBgLoading] = useState(false);
@@ -300,14 +303,71 @@ export default function ElementsPanel({ open, onClose }: Props) {
             {bgError && (
               <p className="text-xs text-danger mt-2">{bgError}</p>
             )}
-            {doc.backgroundImage && (
-              <button
-                className="w-full btn-ghost mt-2 text-xs"
-                onClick={() => setBackgroundImage(undefined)}
-              >
-                Remove background
-              </button>
-            )}
+            {doc.backgroundImage &&
+              (() => {
+                const visible = doc.backgroundVisible !== false;
+                const opacity = doc.backgroundOpacity ?? 1;
+                return (
+                  <div className="mt-3 rounded-md border border-border bg-surface2/60 p-2 space-y-2">
+                    <div
+                      className={`flex items-center gap-2 text-sm ${
+                        visible ? "" : "opacity-50"
+                      }`}
+                    >
+                      <ImgIcon size={14} />
+                      <span className="flex-1 truncate">Background</span>
+                      <button
+                        className="icon-btn w-6 h-6"
+                        title={visible ? "Hide" : "Show"}
+                        onClick={() =>
+                          setDoc((d) => ({
+                            ...d,
+                            backgroundVisible: !visible,
+                          }))
+                        }
+                      >
+                        {visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                      </button>
+                      <button
+                        className="icon-btn w-6 h-6 hover:text-danger"
+                        title="Remove"
+                        onClick={() => setBackgroundImage(undefined)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-muted mb-1">
+                        <span>Opacity</span>
+                        <span>{Math.round(opacity * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={opacity}
+                        onChange={(e) =>
+                          setDoc(
+                            (d) => ({
+                              ...d,
+                              backgroundOpacity: parseFloat(e.target.value),
+                            }),
+                            false
+                          )
+                        }
+                        onMouseUp={() =>
+                          setDoc((d) => ({ ...d }), true)
+                        }
+                        onTouchEnd={() =>
+                          setDoc((d) => ({ ...d }), true)
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
             <input
               ref={bgFileRef}
               type="file"

@@ -52,10 +52,12 @@ function BackgroundImage({
   src,
   width,
   height,
+  opacity,
 }: {
   src: string;
   width: number;
   height: number;
+  opacity: number;
 }) {
   const [img] = useImage(src, "anonymous");
   return (
@@ -65,6 +67,7 @@ function BackgroundImage({
       y={0}
       width={width}
       height={height}
+      opacity={opacity}
       listening={false}
     />
   );
@@ -774,11 +777,12 @@ const Canvas = forwardRef<CanvasHandle, Props>(function Canvas(
                 listening
                 name="isBackground"
               />
-              {doc.backgroundImage && (
+              {doc.backgroundImage && doc.backgroundVisible !== false && (
                 <BackgroundImage
                   src={doc.backgroundImage}
                   width={labelW}
                   height={labelH}
+                  opacity={doc.backgroundOpacity ?? 1}
                 />
               )}
               {gridLines}

@@ -113,6 +113,8 @@ export interface LabelDocument {
   size: LabelSize;
   background: string;
   backgroundImage?: string;
+  backgroundOpacity?: number;
+  backgroundVisible?: boolean;
   elements: LabelElement[];
   cutGuides?: CutGuide[];
 }

@@ -83,7 +83,7 @@ export async function renderRaster(
     );
 
     // background image
-    if (doc.backgroundImage) {
+    if (doc.backgroundImage && doc.backgroundVisible !== false) {
       const img = await loadImg(doc.backgroundImage);
       layer.add(
         new Konva.Image({
@@ -92,6 +92,7 @@ export async function renderRaster(
           y: 0,
           width: widthPx,
           height: heightPx,
+          opacity: doc.backgroundOpacity ?? 1,
         })
       );
     }
@@ -258,9 +259,11 @@ export async function renderSVG(
       mode
     )}"/>`
   );
-  if (doc.backgroundImage) {
+  if (doc.backgroundImage && doc.backgroundVisible !== false) {
     parts.push(
-      `<image href="${doc.backgroundImage}" x="0" y="0" width="${w}" height="${h}"/>`
+      `<image href="${doc.backgroundImage}" x="0" y="0" width="${w}" height="${h}" opacity="${
+        doc.backgroundOpacity ?? 1
+      }"/>`
     );
   }
   for (const el of doc.elements) {
