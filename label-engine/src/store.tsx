@@ -517,16 +517,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const deleteLabel = useCallback(
     (templateId: string, labelId: string) => {
+      let nextLabelId: string | null = null;
       setTemplates((tpls) =>
-        tpls.map((t) =>
-          t.id === templateId
-            ? { ...t, labels: t.labels.filter((l) => l.id !== labelId) }
-            : t
-        )
+        tpls.map((t) => {
+          if (t.id !== templateId) return t;
+          const idx = t.labels.findIndex((l) => l.id === labelId);
+          const remaining = t.labels.filter((l) => l.id !== labelId);
+          if (idx >= 0 && remaining.length > 0) {
+            const fallback = remaining[idx] ?? remaining[idx - 1] ?? remaining[0];
+            nextLabelId = fallback.id;
+          }
+          return { ...t, labels: remaining };
+        })
       );
       if (currentLabelId === labelId) {
-        setCurrentLabelId(null);
-        setView("templateDetail");
+        if (nextLabelId) {
+          setCurrentLabelId(nextLabelId);
+        } else {
+          setCurrentLabelId(null);
+          setView("templateDetail");
+        }
       }
     },
     [currentLabelId]
